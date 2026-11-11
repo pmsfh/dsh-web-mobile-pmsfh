@@ -1138,9 +1138,10 @@
   // Permission lands via the commands RPC, not session.prompt — slash lines
   // sent through session.prompt are NOT intercepted and reach the model as
   // plain text (burns tokens, no effect). commands/execute applies the preset
-  // cleanly: permission/preset event only, no turn. rc.1 字段名不变。
+  // cleanly: permission/preset event only, no turn. 0.2.2: attachment field is
+  // `submittedAttachments` (rc.1 called it `images`).
   function applyPerm(sid, preset) {
-    return rpc('commands/execute', { agentId: sid, line: '/permission ' + preset, images: [] })
+    return rpc('commands/execute', { agentId: sid, line: '/permission ' + preset, submittedAttachments: [] })
       .catch(function (e) { console.error('[permission]', e); toast(T.permFail) })
   }
 

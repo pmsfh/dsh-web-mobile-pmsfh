@@ -35,8 +35,9 @@ sudo systemctl restart dsh-web
 
 ## 兼容性
 
-- v3.0.0 的 wire 实现面向 **dsh-v0.1.2-rc.1**（2026-09 适配）。
-- 当前线上 DSH 为 **0.2.2-rc.1**，wire 已换代（`/api/remote.mux`、Typert RPC 等），本插件**尚未适配、未回归**。安装前先做兼容评估，不要直接上线。
+- v3.0.1 已按 **dsh 0.2.2-rc.1** 的 Typert Remote 签名做静态对齐：`session/list|create|prompt|cancel|page|selectModel|modelCatalog|follow`、`workspace/*`、`directoryPicker/*`、`commands/execute`、`$events/result` 的端点与参数名逐项核对。
+- 本次变更：`commands/execute` 附件字段 `images` → `submittedAttachments`；client manifest 去掉已不存在的 `@deepseek-ai/dsh-client-runtime` 注入（client 半不需要任何 client 服务）。
+- 尚未实机冒烟：首次安装后按「安装」一节跑一遍列表、发消息、流式回包。
 
 ## 注意
 

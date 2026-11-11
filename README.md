@@ -11,7 +11,7 @@
 DSH 的官方 Web UI 按桌面布局设计：侧边栏、悬浮输入框、文件选择在手机窄屏上都不顺手。这个插件在 `/dsh-web-mobile-pmsfh/` 下提供一套独立的移动页，直接调 DSH 自己的接口，不加载官方前端，也不改官方代码。
 
 - 触摸 + 窄屏（≤768px）时自动从主站跳到移动页，桌面端完全不介入
-- 想用桌面版：点列表底部的「桌面版」就能切过去，只对当前这次浏览生效，重新打开还是移动页
+- 想用桌面版：点列表底部的「进入桌面版」就能切过去，只对当前这次浏览生效，重新打开还是移动页
 
 ## 功能
 
@@ -39,7 +39,7 @@ dsh plugin --profile web add /path/to/dsh-web-mobile-pmsfh
 sudo systemctl restart dsh-web
 ```
 
-首次访问 `https://<域名>/dsh-web-mobile-pmsfh/`。手机浏览器打开主站会自动跳转；如果没跳，检查是否被「桌面版」偏好覆盖（`sessionStorage`）。
+首次访问 `https://<域名>/dsh-web-mobile-pmsfh/`。手机浏览器打开主站会自动跳转；如果没跳，检查是否被「进入桌面版」偏好覆盖（`sessionStorage`）。
 
 ## 路由
 

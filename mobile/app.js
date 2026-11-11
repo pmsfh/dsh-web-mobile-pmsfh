@@ -705,9 +705,12 @@
     app.appendChild(renderHead(T.title, { refresh: true, add: true, menu: true }))
     var list = el('div', 'list')
 
-    // Hide blank sessions AND archived sessions (official grouping-surface
-    // semantics: archived stay in workspace accounting but never render).
-    var rows = state.sessions.filter(function (s) { return !s.blank && !state.archived[s.sessionId] })
+    // Hide blank sessions, archived sessions AND subagent sessions (official
+    // sidebar semantics: subagent runs belong to their parent conversation and
+    // never get a top-level row; archived stay in workspace accounting only).
+    var rows = state.sessions.filter(function (s) {
+      return !s.blank && !state.archived[s.sessionId] && s.origin !== 'subagent' && !s.parentSessionId
+    })
     rows.sort(function (a, b) { return b.updatedAt - a.updatedAt })
 
     if (rows.length === 0 && state.workspaces.length === 0) {

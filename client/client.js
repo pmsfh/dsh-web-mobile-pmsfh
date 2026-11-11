@@ -3,7 +3,7 @@
  *
  * Role: bounce coarse-pointer narrow-viewport browsers (phones) from the
  * official SPA to the standalone mobile page served by the plugin's host half
- * at /_dsh-web-mobile/. The old CSS-overlay drawer/touch-target code is retired.
+ * at /_dsh-web-mobile-pmsfh/. The old CSS-overlay drawer/touch-target code is retired.
  *
  * Escape hatch (session-scoped): the mobile page's "desktop version" link sets
  * sessionStorage['dsh-web-mobile-pmsfh:desktop'] = '1' before navigating to '/',
@@ -25,7 +25,7 @@ window.__ModuleLoader__.load({
     exports.inject = []
     exports.apply = function () {
       try {
-        if (location.pathname.indexOf('/_dsh-web-mobile') === 0) return
+        if (location.pathname.indexOf('/_dsh-web-mobile-pmsfh') === 0) return
         // Remove the legacy permanent escape flag (one-way lock from v2.0/v2.1)
         try { localStorage.removeItem('dsh-web-mobile-pmsfh:desktop') } catch (e) {}
         var escaped = false
@@ -33,7 +33,7 @@ window.__ModuleLoader__.load({
         var coarse = window.matchMedia('(pointer: coarse)').matches
         var narrow = window.matchMedia('(max-width: 768px)').matches
         if (!escaped && coarse && narrow) {
-          location.replace('/_dsh-web-mobile/')
+          location.replace('/_dsh-web-mobile-pmsfh/')
           return
         }
         // Phone chose desktop for this session: give it a way back.
@@ -48,7 +48,7 @@ window.__ModuleLoader__.load({
       if (document.getElementById('dsh-web-mobile-pmsfh-fab')) return
       var fab = document.createElement('a')
       fab.id = 'dsh-web-mobile-pmsfh-fab'
-      fab.href = '/_dsh-web-mobile/'
+      fab.href = '/_dsh-web-mobile-pmsfh/'
       fab.textContent = '📱'
       fab.title = '移动版'
       fab.setAttribute('aria-label', '移动版')

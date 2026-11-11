@@ -6,9 +6,11 @@
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)
 [![dsh](https://img.shields.io/badge/dsh-0.2.2--rc.1-5B6EF5)](https://github.com/deepseek-ai/deepseek-harness)
 
-## 为什么
+## 是什么
 
-DSH 的官方 Web UI 按桌面布局设计：侧边栏、悬浮输入框、文件选择在手机窄屏上都不顺手。这个插件在 `/dsh-web-mobile-pmsfh/` 下提供一套独立的移动页，直接调 DSH 自己的接口，不加载官方前端，也不改官方代码。
+`dsh-web-mobile-pmsfh` 是 DSH 的移动端页面插件：在 `/dsh-web-mobile-pmsfh/` 下提供一套独立的聊天界面，直接调 DSH 自己的接口，不加载官方前端，也不改官方代码。
+
+DSH 的官方 Web UI 按桌面布局设计，侧边栏、悬浮输入框、文件选择在手机窄屏上都不顺手——移动页专门解决这一点。
 
 - 触摸 + 窄屏（≤768px）时自动从主站跳到移动页，桌面端完全不介入
 - 想用桌面版：点列表底部的「进入桌面版」就能切过去，只对当前这次浏览生效，重新打开还是移动页

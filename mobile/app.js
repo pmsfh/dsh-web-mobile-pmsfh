@@ -1809,7 +1809,7 @@
   }
 
   function openDownloadSheet(sessionId) {
-    rpc('workspaceFiles/list', { workspaceFileScopeId: sessionId, path: '' })
+    rpc('workspaceFiles/list', { workspaceFileScopeId: sessionId, path: '.' })
       .then(function (v) {
         var entries = (v && v.entries) || []
         var files = entries.filter(function (e) { return e && e.type === 'file' })
@@ -1831,14 +1831,46 @@
   }
 
   function downloadFile(sessionId, name) {
-    rpc('workspaceFiles/readBytes', { workspaceFileScopeId: sessionId, path: name, options: {} })
-      .then(function (v) {
-        var b64 = v && v.data
-        if (!b64 || typeof b64 !== 'string') throw new Error('empty bytes')
-        var bin = atob(b64)
-        var arr = new Uint8Array(bin.length)
-        for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
-        var blob = new Blob([arr], { type: 'application/octet-stream' })
+    // readBytes 走 multipart/form-data：metadata 是 JSON 信封，字节在独立 part 里
+    // （envelope.attachments[0].part），不是普通 JSON 响应。
+    fetch('/api/workspaceFiles/readBytes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        type: 'client-request', rpcId: rpcId(), method: 'workspaceFiles/readBytes',
+        payload: { args: { workspaceFileScopeId: sessionId, path: name, options: {} } },
+      }),
+    })
+      .then(function (r) {
+        if (r.status === 401) { gotoLogin(); throw new Error('unauthorized') }
+        if (!r.ok) throw new Error('HTTP ' + r.status)
+        var ct = (r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
+        if (ct !== 'multipart/form-data') {
+          return r.json().then(function (full) {
+            var res = full && full.result
+            if (!res || !res.ok) throw new Error((res && res.error && res.error.message) || 'rpc error')
+            var v = res.value
+            if (!v || typeof v.data !== 'string') throw new Error('unsupported response')
+            var bin = atob(v.data)
+            var arr = new Uint8Array(bin.length)
+            for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+            return arr
+          })
+        }
+        return r.formData().then(function (body) {
+          var fields = new Map()
+          body.forEach(function (value, key) { fields.set(key, value) })
+          var meta = JSON.parse(fields.get('metadata'))
+          var res = meta && meta.result
+          if (!res || !res.ok) throw new Error((res && res.error && res.error.message) || 'rpc error')
+          var att = (meta.attachments || [])[0]
+          var blob = att && fields.get(att.part)
+          if (!blob || typeof blob.arrayBuffer !== 'function') throw new Error('missing attachment part')
+          return blob.arrayBuffer().then(function (buf) { return new Uint8Array(buf) })
+        })
+      })
+      .then(function (bytes) {
+        var blob = new Blob([bytes], { type: 'application/octet-stream' })
         var u = URL.createObjectURL(blob)
         var a = document.createElement('a')
         a.href = u

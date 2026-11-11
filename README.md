@@ -9,6 +9,7 @@ DSH（DeepSeek Harness）插件：为手机访问提供独立移动端页面，�
 - **host 半**：在 `/dsh-web-mobile-pmsfh/` 下提供自带聊天页（index.html + app.js + app.css + 内置 markdown-it），页面直接走 DSH wire 协议（`POST /api/<namespace>/<method>`、`WS /api/remote.mux`），不加载官方 SPA bundle。
 - **附件与文件**：手机选文件走官方 `fileUploads/upload`（聊天附件暂存，receiptId 随下一条消息发送，不落工作区）；工作区文件列表/下载走官方 `workspaceFiles/list|readBytes`（只读，scope 为当前会话）。
 - **登录与退出**：移动页在 `dsh-auth-gate` 之后。未登录导航由 gate 302 到登录页；页面内 fetch 遇 401、或 WS 断开且 `/auth/status` 报未登录时自动跳登录页；头部「⋯ → 退出登录」以 POST `/auth/logout` 登出。
+- **访问控制**：插件静态路由在 host 端复用 DSH `connection.admit`（与 `/api` 同一套 browser-session 校验），无 DSH cookie 直接 401，不再裸奔；有 `dsh-auth-gate` 时未登录导航仍由 gate 302 登录页。
 - **client 半**：只做重定向——粗指针（触摸）且窄屏（≤768px）的浏览器从官方 SPA 跳到移动页；桌面端完全不介入。
 - **会话级逃生口**：移动页的「桌面版」链接写入 `sessionStorage['dsh-web-mobile-pmsfh:desktop']`，本次浏览会话不再跳转；下次新访问恢复移动页。
 - 旧的 CSS 覆盖 / 抽屉方案已于 v2.0 退役。

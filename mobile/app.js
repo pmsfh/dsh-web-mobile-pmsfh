@@ -71,11 +71,14 @@
     stop: '停止',
     queued: ' 条排队中',
     attach: '附件',
-    upload: '上传到工作区',
-    download: '从工作区下载',
+    upload: '添加附件',
+    download: '下载工作区文件',
     uploading: '上传中…',
-    uploaded: '已上传 ',
+    uploaded: '已添加 ',
     uploadFail: '上传失败',
+    attachHint: '附件将随下一条消息发送',
+    fileTooBig: '文件过大（上限 8 MB）',
+    detach: '移除',
     downloadFail: '下载失败',
     noFiles: '工作区没有可下载的文件',
     noCwd: '该会话没有工作区',
@@ -157,11 +160,14 @@
     stop: 'Stop',
     queued: ' queued',
     attach: 'Attach',
-    upload: 'Upload to workspace',
-    download: 'Download from workspace',
+    upload: 'Add attachment',
+    download: 'Download workspace file',
     uploading: 'Uploading…',
-    uploaded: 'Uploaded ',
+    uploaded: 'Added ',
     uploadFail: 'Upload failed',
+    attachHint: 'Attachments are sent with your next message',
+    fileTooBig: 'File too large (8 MB limit)',
+    detach: 'Remove',
     downloadFail: 'Download failed',
     noFiles: 'No downloadable files in the workspace',
     noCwd: 'This session has no workspace',
@@ -249,6 +255,9 @@
     'host.listDirectory': ['directoryPicker/list', function (p) { return p || {} }],
     'host.createDirectory': ['directoryPicker/createDirectory', wrapSelf],
     'commands/execute': ['commands/execute', wrapSelf],
+    'fileUploads/upload': ['fileUploads/upload', wrapSelf],
+    'workspaceFiles/list': ['workspaceFiles/list', wrapSelf],
+    'workspaceFiles/readBytes': ['workspaceFiles/readBytes', wrapSelf],
     '$events/result': ['$events/result', wrapSelf],
   }
 
@@ -1557,6 +1566,7 @@
   function paintComposer() {
     if (!chat || !chat.sendBtn) return
     var hasText = chat.input && chat.input.value.trim().length > 0
+    var hasAttach = !!(chat.id && attachList(chat.id).length)
     if (chat.running) {
       chat.sendBtn.textContent = '■'
       chat.sendBtn.setAttribute('aria-label', T.stop)
@@ -1565,7 +1575,7 @@
     } else {
       chat.sendBtn.textContent = '↑'
       chat.sendBtn.setAttribute('aria-label', T.send)
-      chat.sendBtn.disabled = !hasText
+      chat.sendBtn.disabled = !hasText && !hasAttach
       chat.sendBtn.classList.remove('stopping')
     }
     if (chat.queueChip) {
@@ -1579,6 +1589,10 @@
     var chip = el('div', 'queue-chip')
     chip.hidden = true
     wrap.appendChild(chip)
+
+    var attachRow = el('div', 'c-attach-row')
+    attachRow.hidden = true
+    wrap.appendChild(attachRow)
 
     var row = el('div', 'c-row')
     var attachBtn = el('button', 'c-attach', '📎')
@@ -1604,17 +1618,24 @@
         return
       }
       var text = input.value.trim()
-      if (!text) return
+      var atts = attachList(sessionId)
+      if (!text && !atts.length) return
       input.value = ''
       input.style.height = 'auto'
       var tz
       try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone } catch (e) {}
+      var content = []
+      if (text) content.push({ type: 'text', text: text })
+      for (var ai = 0; ai < atts.length; ai++) content.push({ type: 'file', receiptId: atts[ai].receiptId })
       rpc('session.prompt', {
-        requestId: rpcId(),   // rc.1: 客户端铸造的消息 id（服务端落在同名 user 消息上）
+        requestId: rpcId(),   // 客户端铸造的消息 id（服务端落在同名 user 消息上）
         sessionId: sessionId,
         mode: 'queue',
-        content: [{ type: 'text', text: text }],
+        content: content,
         clientTimeZone: tz,
+      }).then(function () {
+        state.attachments[sessionId] = []
+        paintAttachChips(sessionId)
       }).catch(function (e) {
         console.error('[prompt]', e)
         toast(T.sendFail)
@@ -1636,10 +1657,12 @@
     app.appendChild(wrap)
     chat.input = input
     chat.sendBtn = sendBtn
+    chat.attachRow = attachRow
     chat.queueChip = chip
     chat.modelBtn = modelBtn
     chat.queueCount = 0
     paintComposer()
+    paintAttachChips(sessionId)
 
     // Model label for the chip: rc.1 起目录（session/modelCatalog）与当前
     // 模型（follow 快照 projections.modelSelection）分家，两者凑齐再落字。
@@ -1664,80 +1687,111 @@
     chat.modelBtn.textContent = seat || cur.model
   }
 
-  // ── attach sheet: one button → upload OR download ───────────
-  function sessionCwd(id) {
-    var s = state.byId[id]
-    if (s && s.cwd) return s.cwd
-    return state.cwds[id] || null // sessions created this page-load
+  // ── attach sheet: chat attachment OR workspace download ──────
+  // 0.2.2 官方接口：fileUploads/upload 把文件作为聊天附件暂存，receiptId 随
+  // 下一条 prompt 的 content file-part 发送；workspaceFiles/list|readBytes
+  // 读取工作区文件（scope = 当前会话 id，path 相对工作区根，'' 为根）。
+  var MAX_ATTACH_BYTES = 8 * 1024 * 1024
+
+  function attachList(sessionId) {
+    var m = state.attachments || (state.attachments = Object.create(null))
+    if (!m[sessionId]) m[sessionId] = []
+    return m[sessionId]
+  }
+
+  function paintAttachChips(sessionId) {
+    if (!chat || chat.id !== sessionId || !chat.attachRow) return
+    var list = attachList(sessionId)
+    var row = chat.attachRow
+    row.textContent = ''
+    row.hidden = list.length === 0
+    for (var i = 0; i < list.length; i++) {
+      (function (item, idx) {
+        var chip = el('span', 'c-chip')
+        chip.appendChild(el('span', 'c-chip-name', esc(item.name || 'attachment')))
+        var x = el('button', 'c-chip-x', '×')
+        x.setAttribute('aria-label', T.detach)
+        x.addEventListener('click', function () {
+          list.splice(idx, 1)
+          paintAttachChips(sessionId)
+          paintComposer()
+        })
+        chip.appendChild(x)
+        row.appendChild(chip)
+      })(list[i], i)
+    }
   }
 
   function openAttachSheet(sessionId) {
-    var cwd = sessionCwd(sessionId)
-    if (!cwd) { toast(T.noCwd); return }
     openSheet(function (sheet) {
       var up = el('button', 'sheet-item', '⇪ ' + T.upload)
-      up.addEventListener('click', function () { closeSheet(); pickAndUpload(cwd) })
+      up.addEventListener('click', function () { closeSheet(); pickAndUpload(sessionId) })
       var down = el('button', 'sheet-item', '⇩ ' + T.download)
-      down.addEventListener('click', function () { closeSheet(); openDownloadSheet(cwd) })
+      down.addEventListener('click', function () { closeSheet(); openDownloadSheet(sessionId) })
       sheet.appendChild(up)
       sheet.appendChild(down)
+      sheet.appendChild(el('div', 'sheet-note', T.attachHint))
     })
   }
 
-  function pickAndUpload(cwd) {
+  function pickAndUpload(sessionId) {
     var inp = document.createElement('input')
     inp.type = 'file'
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0]
       if (!f) return
+      if (f.size > MAX_ATTACH_BYTES) { toast(T.fileTooBig); return }
       toast(T.uploading)
-      // XHR + ArrayBuffer covers every mobile engine incl. embedded WebViews
-      // (in-app browsers can be quirky about fetch File bodies); zero cost.
-      f.arrayBuffer().then(function (buf) {
-        var xhr = new XMLHttpRequest()
-        xhr.open('POST', '/_dsh-file/upload?cwd=' + encodeURIComponent(cwd) + '&name=' + encodeURIComponent(f.name))
-        xhr.onload = function () {
-          var j
-          try { j = JSON.parse(xhr.responseText) } catch (e) { j = null }
-          if (xhr.status >= 200 && xhr.status < 300 && j && j.ok) toast(T.uploaded + (j.path || f.name))
-          else toast(T.uploadFail + (j && j.error ? ': ' + j.error : ''))
-        }
-        xhr.onerror = function () { toast(T.uploadFail) }
-        xhr.send(buf)
-      }).catch(function () { toast(T.uploadFail) })
+      var fr = new FileReader()
+      fr.onload = function () {
+        var b64 = String(fr.result || '').split(',')[1] || ''
+        rpc('fileUploads/upload', { agentId: sessionId, request: { data: b64, name: f.name } })
+          .then(function (v) {
+            if (!v || !v.receiptId) { toast(T.uploadFail); return }
+            attachList(sessionId).push({ receiptId: v.receiptId, name: f.name })
+            paintAttachChips(sessionId)
+            paintComposer()
+            toast(T.uploaded + f.name)
+          })
+          .catch(function (e) { console.error('[upload]', e); toast(T.uploadFail) })
+      }
+      fr.onerror = function () { toast(T.uploadFail) }
+      fr.readAsDataURL(f)
     })
     inp.click()
   }
 
-  function openDownloadSheet(cwd) {
-    fetch('/_dsh-file/list?cwd=' + encodeURIComponent(cwd))
-      .then(function (r) { return r.json() })
-      .then(function (j) {
-        var files = (j && j.files) || []
+  function openDownloadSheet(sessionId) {
+    rpc('workspaceFiles/list', { workspaceFileScopeId: sessionId, path: '' })
+      .then(function (v) {
+        var entries = (v && v.entries) || []
+        var files = entries.filter(function (e) { return e && e.type === 'file' })
         openSheet(function (sheet) {
           if (!files.length) { sheet.appendChild(el('div', 'sheet-empty', T.noFiles)); return }
           for (var i = 0; i < files.length; i++) {
             (function (f) {
-              var it = el('button', 'sheet-item', esc(f.name || f))
+              var it = el('button', 'sheet-item', esc(f.name))
               it.addEventListener('click', function () {
                 closeSheet()
-                downloadFile(cwd, f.name || f)
+                downloadFile(sessionId, f.name)
               })
               sheet.appendChild(it)
             })(files[i])
           }
         })
       })
-      .catch(function () { toast(T.downloadFail) })
+      .catch(function (e) { console.error('[wslist]', e); toast(T.downloadFail) })
   }
 
-  function downloadFile(cwd, name) {
-    fetch('/_dsh-file/download?cwd=' + encodeURIComponent(cwd) + '&path=' + encodeURIComponent(name))
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status)
-        return r.blob()
-      })
-      .then(function (blob) {
+  function downloadFile(sessionId, name) {
+    rpc('workspaceFiles/readBytes', { workspaceFileScopeId: sessionId, path: name, options: {} })
+      .then(function (v) {
+        var b64 = v && v.data
+        if (!b64 || typeof b64 !== 'string') throw new Error('empty bytes')
+        var bin = atob(b64)
+        var arr = new Uint8Array(bin.length)
+        for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+        var blob = new Blob([arr], { type: 'application/octet-stream' })
         var u = URL.createObjectURL(blob)
         var a = document.createElement('a')
         a.href = u
@@ -1748,7 +1802,7 @@
         a.remove()
         setTimeout(function () { URL.revokeObjectURL(u) }, 1500)
       })
-      .catch(function () { toast(T.downloadFail) })
+      .catch(function (e) { console.error('[download]', e); toast(T.downloadFail) })
   }
 
   // ── model sheet ─────────────────────────────────────────────

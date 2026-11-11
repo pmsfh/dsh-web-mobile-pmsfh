@@ -55,6 +55,7 @@
     chatEmpty: '发消息开始对话\n📎 可以传文件给智能体',
     loadFail: '加载失败，点右上角刷新重试',
     desktop: '进入桌面版',
+    jumpDown: '回到底部',
     justNow: '刚刚',
     minutesAgo: ' 分钟前',
     hoursAgo: ' 小时前',
@@ -146,6 +147,7 @@
     chatEmpty: 'Send a message to start\n📎 attaches a file for the agent',
     loadFail: 'Load failed — tap refresh to retry',
     desktop: 'Open desktop version',
+    jumpDown: 'Back to bottom',
     justNow: 'just now',
     minutesAgo: 'm ago',
     hoursAgo: 'h ago',
@@ -1242,11 +1244,40 @@
     return out.join('\n')
   }
 
-  function nearBottom(box) {
-    return box.scrollHeight - box.scrollTop - box.clientHeight < 140
+  // ── scroll follow (stick-to-bottom) ────────────────────────
+  // A distance threshold alone loses the chase during fast streams: one big
+  // delta pushes content past the threshold and following stops mid-answer.
+  // Instead keep an explicit intent flag: programmatic scrolls never clear it,
+  // only a real upward gesture does; coming back near the bottom re-arms it.
+  function gapToBottom(box) {
+    return box.scrollHeight - box.scrollTop - box.clientHeight
   }
-  function scrollBottom(box) { box.scrollTop = box.scrollHeight }
-  function maybeScroll(box) { if (nearBottom(box)) scrollBottom(box) }
+  function scrollBottom(box, smooth) {
+    if (!box) return
+    if (chat) chat.ignoreScrollUntil = Date.now() + 180
+    if (smooth && box.scrollTo) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' })
+    else box.scrollTop = box.scrollHeight
+    // Content can keep growing for a frame (fonts, images); re-pin once.
+    requestAnimationFrame(function () {
+      if (!chat || chat.box !== box || chat.stick === false) return
+      box.scrollTop = box.scrollHeight
+    })
+  }
+  function maybeScroll(box) {
+    if (!box || !chat || chat.stick === false) return
+    scrollBottom(box)
+  }
+  function paintJump() {
+    if (!chat || !chat.jump) return
+    var on = chat.stick === false && gapToBottom(chat.box) > 160
+    chat.jump.classList.toggle('on', on)
+  }
+  function onChatScroll() {
+    if (!chat || !chat.box) return
+    if (Date.now() < (chat.ignoreScrollUntil || 0)) return
+    chat.stick = gapToBottom(chat.box) < 48
+    paintJump()
+  }
 
   function stepKey(turn, step) { return turn + ':' + step }
 
@@ -1537,6 +1568,7 @@
       id: id, box: null, events: [], hasMore: false, baseSeq: null, cursor: 0,
       maxSeq: 0, steps: Object.create(null), cards: Object.create(null), olderBtn: null,
       projections: null, running: !!(s && s.running),
+      stick: true, ignoreScrollUntil: 0, jump: null,
       app: app, s: s,
     }
     // rc.1: 历史+实时同源——session/follow 流首帧快照即尾部窗口，之后逐事件推送
@@ -1553,7 +1585,19 @@
     app.textContent = ''
     app.appendChild(renderHead(state.titles[id] || (s ? sessionTitle(s) : T.untitled), { back: true, menu: true }))
     chat.box = el('div', 'chat')
+    chat.box.addEventListener('scroll', onChatScroll, { passive: true })
     app.appendChild(chat.box)
+    chat.stick = true
+    chat.ignoreScrollUntil = 0
+    chat.jump = el('button', 'jump-down', '↓')
+    chat.jump.setAttribute('aria-label', T.jumpDown)
+    chat.jump.addEventListener('click', function () {
+      if (!chat) return
+      chat.stick = true
+      scrollBottom(chat.box, true)
+      paintJump()
+    })
+    app.appendChild(chat.jump)
     fullRenderChat()
     // System events (preset/policy/inbox) fold to nothing visible — judge
     // emptiness by rendered messages, not the raw event count.
@@ -1720,6 +1764,9 @@
       var content = []
       if (text) content.push({ type: 'text', text: text })
       for (var ai = 0; ai < atts.length; ai++) content.push({ type: 'file', receiptId: atts[ai].receiptId })
+      // Sending means the user wants to watch the reply: re-arm follow and
+      // jump to the bottom even if they had scrolled up to read earlier turns.
+      if (chat) { chat.stick = true; scrollBottom(chat.box) }
       rpc('session.prompt', {
         requestId: rpcId(),   // 客户端铸造的消息 id（服务端落在同名 user 消息上）
         sessionId: sessionId,

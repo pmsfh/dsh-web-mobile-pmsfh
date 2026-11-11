@@ -1,6 +1,6 @@
 # dsh-web-mobile-pmsfh
 
-**给 DeepSeek Harness 一个能用的手机页面。** 独立移动端聊天界面，直接跑在 DSH 自己的协议上；桌面端 UI 零改动，主仓库零改动。
+**给 DeepSeek Harness 一个专用的手机页面。** 独立移动端聊天界面，直接跑在 DSH 自己的协议上；桌面端 UI 零改动，主仓库零改动。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)

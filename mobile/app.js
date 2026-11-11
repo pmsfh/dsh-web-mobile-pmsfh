@@ -218,6 +218,11 @@
   try {
     if (window.markdownit) {
       md = window.markdownit({ html: false, linkify: true, breaks: false })
+      // CommonMark closes `**` only before whitespace/punctuation, so Chinese
+      // `**词**是…` would leak literal stars; the CJK-friendly plugin relaxes
+      // that rule for CJK punctuation/characters.
+      var cjk = window.markdownitCjkFriendly
+      if (cjk) md.use(cjk.default || cjk)
       // Defence in depth: only web/mail links may become anchors/images.
       md.validateLink = function (url) { return /^(https?:|mailto:)/i.test(String(url || '')) }
     }

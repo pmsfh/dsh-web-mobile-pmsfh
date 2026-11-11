@@ -3,6 +3,14 @@
   "version": "3.2.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renlang119/dsh-web-mobile-pmsfh.git"
+  },
   "description": "Standalone mobile web page for DSH (v2.0 rewrite): the host half serves a self-contained mini chat app at /dsh-web-mobile-pmsfh/ that talks directly to the same wire protocol as the official SPA (unary POST /api/<method>, WS /api/remote.mux). The client half only redirects coarse-pointer narrow-viewport browsers to the mobile page (sessionStorage-scoped escape hatch). The old CSS-overlay approach is retired. Zero main-repo changes.",
   "main": "lib/index.js",
   "exports": {

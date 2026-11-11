@@ -563,7 +563,7 @@
   function gotoLogin() {
     if (authRedirecting) return
     authRedirecting = true
-    var next = location.pathname || '/_dsh-web-mobile-pmsfh/'
+    var next = location.pathname || '/dsh-web-mobile-pmsfh/'
     location.href = '/auth/login?next=' + encodeURIComponent(next)
   }
   function checkAuth() {
@@ -583,7 +583,7 @@
         // gate 的 /auth/logout 只接受 POST：用原生 form 提交，零 JS 依赖。
         var f = document.createElement('form')
         f.method = 'POST'
-        f.action = '/auth/logout?next=' + encodeURIComponent('/_dsh-web-mobile-pmsfh/')
+        f.action = '/auth/logout?next=' + encodeURIComponent('/dsh-web-mobile-pmsfh/')
         document.body.appendChild(f)
         f.submit()
       })

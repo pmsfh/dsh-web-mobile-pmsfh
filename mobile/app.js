@@ -1292,6 +1292,19 @@
       }
       st.reasonEl.textContent = r
     }
+    syncStepChrome(st, liveText(st), !!r)
+  }
+
+  /**
+   * Steps that carried only reasoning (or only tool calls) would otherwise
+   * leave a bordered, padded bubble with nothing inside — that is the blank
+   * gap users see between two collapsed "思考过程" rows. `bare` drops the
+   * bubble chrome when there is nothing to show but the reasoning fold;
+   * `empty` removes the node entirely when neither text nor reasoning exists.
+   */
+  function syncStepChrome(st, text, hasReason) {
+    st.node.classList.toggle('bare', !text && hasReason)
+    st.node.classList.toggle('empty', !text && !hasReason)
   }
 
   function finalizeStep(turn, step, message, interrupted) {
@@ -1316,6 +1329,7 @@
       st.reasonDet.querySelector('summary').textContent = T.thinking
     }
     st.node.classList.remove('live')
+    syncStepChrome(st, text, !!reason)
     if (interrupted) st.node.appendChild(el('div', 'stopped', T.stopped))
     delete chat.steps[key]
   }
@@ -1482,6 +1496,8 @@
       var st = chat.steps[keys[i]]
       if (!st || !st.body) continue
       var text = liveText(st)
+      var hasReason = !!st.reasonEl
+      syncStepChrome(st, text, hasReason)
       if (!text) continue
       var html = renderMd(text)
       if (html) st.body.innerHTML = html

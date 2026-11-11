@@ -232,6 +232,16 @@ html, body {
 }
 .msg.assistant.live { opacity: 0.85; }
 .msg.assistant.live .md { white-space: pre-wrap; }
+/* Reasoning-only step: keep the fold, drop the empty bubble box. */
+.msg.assistant.bare {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  max-width: 100%;
+}
+.msg.assistant.bare .md { display: none; }
+/* A step with neither text nor reasoning contributes nothing. */
+.msg.assistant.empty { display: none; }
 .stopped {
   margin-top: 6px;
   font-size: 11px;

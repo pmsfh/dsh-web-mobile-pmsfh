@@ -43,6 +43,14 @@ sudo systemctl restart dsh-web
 - 本次变更：`commands/execute` 附件字段 `images` → `submittedAttachments`；client manifest 去掉已不存在的 `@deepseek-ai/dsh-client-runtime` 注入（client 半不需要任何 client 服务）。
 - 尚未实机冒烟：首次安装后按「安装」一节跑一遍列表、发消息、流式回包。
 
+## 安全（独立部署）
+
+- 插件**不自带用户体系**。`/dsh-web-mobile-pmsfh/*` 的静态路由复用 DSH `connection.admit` 的 browser-session 校验，未认证请求直接 401；认证服务不可用时返回 503（fail-closed），不会放行。
+- 通过反向代理公开时，请在代理层加认证（Basic Auth / OIDC / mTLS），不要把 DSH 端口直接暴露到公网。
+- HTML 响应带 CSP（`script-src 'self'`、`frame-ancestors 'none'` 等）、`nosniff`、`no-referrer`、`X-Frame-Options: DENY`。
+- 模型输出经 markdown-it 渲染（`html: false`），链接白名单仅 `http/https/mailto`。
+- 依赖 DSH 内部 `connection` 服务与 `admit()`；DSH 升级若改名，插件会因服务等待而不激活，不会静默放行。
+
 ## 注意
 
 - 个人自用插件，`pmsfh` 为本地标记后缀。

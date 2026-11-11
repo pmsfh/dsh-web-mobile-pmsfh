@@ -218,6 +218,8 @@
   try {
     if (window.markdownit) {
       md = window.markdownit({ html: false, linkify: true, breaks: false })
+      // Defence in depth: only web/mail links may become anchors/images.
+      md.validateLink = function (url) { return /^(https?:|mailto:)/i.test(String(url || '')) }
     }
   } catch (e) { console.error('[md init]', e) }
   function renderMd(text) {

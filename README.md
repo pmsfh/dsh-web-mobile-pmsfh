@@ -19,7 +19,7 @@ DSH 的官方 Web UI 按桌面布局设计：侧边栏、悬浮输入框、文�
 - **聊天**：流式输出、思考过程折叠、markdown、代码块、停止生成
 - **附件**：手机选文件走官方 `fileUploads/upload`，随消息发送，不落工作区
 - **文件**：工作区列表与下载走官方 `workspaceFiles/list|readBytes`（只读）
-- **登录**：沿用 DSH 的 browser session；未登录导航由前置登录门接管，插件路由再做一次 `connection.admit`
+- **登录**：沿用 DSH 自己的登录状态；没登录时先被登录页拦住，插件自己也会再校验一次
 - **缓存**：静态资源带内容哈希 ETag，重复访问 304；vendor 30 天强缓存
 - **安全头**：CSP、nosniff、no-referrer、X-Frame-Options: DENY
 
@@ -55,7 +55,7 @@ sudo systemctl restart dsh-web
 
 ## 安全
 
-- 不自带用户体系。静态路由复用 DSH `connection.admit` 的 browser-session 校验，未认证 401；认证服务不可用时 503（fail-closed）。
+- 不自带账号体系。没登录时访问插件页面会被 DSH 的登录校验直接拒绝（401）；校验服务不可用时返回 503，不会放行。
 - 通过反向代理公开时，请在代理层加认证（Basic Auth / OIDC / mTLS），不要把 DSH 端口直接暴露到公网。
 - 模型输出经 markdown-it 渲染（`html: false`），链接白名单仅 `http/https/mailto`；HTML 响应带 CSP。
 

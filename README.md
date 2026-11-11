@@ -65,7 +65,7 @@ dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 sudo systemctl restart dsh-web
 ```
 
-上面的命令装进 `web` profile（`dsh web` 使用的那个）；官方桌面 App 的 profile 由 App 自己管理，要装桌面端请走 App 内的 设置 → 插件。
+上面的命令装进 `web` profile（`dsh web` 使用的那个）；桌面客户端的 profile 由客户端自己管理，要装桌面端请走客户端内的 设置 → 插件。
 
 首次访问：用移动设备打开主站会自动跳转，也可以直接开 `https://<域名>/dsh-web-mobile-pmsfh/`。如果没跳，检查这次浏览是否点过「进入桌面版」；那是会话级偏好（sessionStorage），关掉页面重开即恢复默认
 

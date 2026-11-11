@@ -1462,6 +1462,25 @@
     }
   }
 
+  /**
+   * A static history replay feeds `chunkrow/*` frames through paintLiveStep(),
+   * which paints plain text while streaming. Once the replay is done the text
+   * is final, so upgrade every replayed bubble to markdown in one pass instead
+   * of leaving `**`/`##` literals on screen.
+   */
+  function renderHistoricalSteps() {
+    var keys = Object.keys(chat.steps)
+    for (var i = 0; i < keys.length; i++) {
+      var st = chat.steps[keys[i]]
+      if (!st || !st.body) continue
+      var text = liveText(st)
+      if (!text) continue
+      var html = renderMd(text)
+      if (html) st.body.innerHTML = html
+      st.node.classList.remove('live')
+    }
+  }
+
   function fullRenderChat() {
     chat.box.textContent = ''
     chat.steps = Object.create(null)
@@ -1478,6 +1497,7 @@
       if (ev && typeof ev.seq === 'number' && ev.seq > chat.maxSeq) chat.maxSeq = ev.seq
       foldEvent(chat.events[i])
     }
+    renderHistoricalSteps()
     scrollBottom(chat.box)
   }
 

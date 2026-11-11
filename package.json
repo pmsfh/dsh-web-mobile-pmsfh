@@ -1,6 +1,6 @@
 {
   "name": "dsh-web-mobile-pmsfh",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "private": true,
   "type": "module",
   "description": "Standalone mobile web page for DSH (v2.0 rewrite): the host half serves a self-contained mini chat app at /_dsh-web-mobile/ that talks directly to the same wire protocol as the official SPA (unary POST /api/<method>, WS /api/remote.mux). The client half only redirects coarse-pointer narrow-viewport browsers to the mobile page (sessionStorage-scoped escape hatch). The old CSS-overlay approach is retired. Zero main-repo changes.",

@@ -8,6 +8,7 @@ DSH（DeepSeek Harness）插件：为手机访问提供独立移动端页面，�
 
 - **host 半**：在 `/_dsh-web-mobile/` 下提供自带聊天页（index.html + app.js + app.css + 内置 markdown-it），页面直接走 DSH wire 协议（`POST /api/<namespace>/<method>`、`WS /api/remote.mux`），不加载官方 SPA bundle。
 - **附件与文件**：手机选文件走官方 `fileUploads/upload`（聊天附件暂存，receiptId 随下一条消息发送，不落工作区）；工作区文件列表/下载走官方 `workspaceFiles/list|readBytes`（只读，scope 为当前会话）。
+- **登录与退出**：移动页在 `dsh-auth-gate` 之后。未登录导航由 gate 302 到登录页；页面内 fetch 遇 401、或 WS 断开且 `/auth/status` 报未登录时自动跳登录页；头部「⋯ → 退出登录」以 POST `/auth/logout` 登出。
 - **client 半**：只做重定向——粗指针（触摸）且窄屏（≤768px）的浏览器从官方 SPA 跳到移动页；桌面端完全不介入。
 - **会话级逃生口**：移动页的「桌面版」链接写入 `sessionStorage['dsh-web-mobile-pmsfh:desktop']`，本次浏览会话不再跳转；下次新访问恢复移动页。
 - 旧的 CSS 覆盖 / 抽屉方案已于 v2.0 退役。
@@ -36,7 +37,7 @@ sudo systemctl restart dsh-web
 
 ## 兼容性
 
-- v3.1.0 已按 **dsh 0.2.2-rc.1** 的 Typert Remote 签名做静态对齐：`session/list|create|prompt|cancel|page|selectModel|modelCatalog|follow`、`workspace/*`、`directoryPicker/*`、`commands/execute`、`$events/result` 的端点与参数名逐项核对。
+- v3.1.1 已按 **dsh 0.2.2-rc.1** 的 Typert Remote 签名做静态对齐：`session/list|create|prompt|cancel|page|selectModel|modelCatalog|follow`、`workspace/*`、`directoryPicker/*`、`commands/execute`、`$events/result` 的端点与参数名逐项核对。
 - 文件功能已全部改用官方接口：上传 `fileUploads/upload`、列表/下载 `workspaceFiles/list|readBytes`，不再依赖 `/_dsh-file/*` 路由（那属于已退役的 dsh-file-pmsfh）。
 - 本次变更：`commands/execute` 附件字段 `images` → `submittedAttachments`；client manifest 去掉已不存在的 `@deepseek-ai/dsh-client-runtime` 注入（client 半不需要任何 client 服务）。
 - 尚未实机冒烟：首次安装后按「安装」一节跑一遍列表、发消息、流式回包。

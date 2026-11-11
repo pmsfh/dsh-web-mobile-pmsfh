@@ -79,6 +79,8 @@
     attachHint: '附件将随下一条消息发送',
     fileTooBig: '文件过大（上限 8 MB）',
     detach: '移除',
+    logout: '退出登录',
+    account: '账户',
     downloadFail: '下载失败',
     noFiles: '工作区没有可下载的文件',
     noCwd: '该会话没有工作区',
@@ -168,6 +170,8 @@
     attachHint: 'Attachments are sent with your next message',
     fileTooBig: 'File too large (8 MB limit)',
     detach: 'Remove',
+    logout: 'Sign out',
+    account: 'Account',
     downloadFail: 'Download failed',
     noFiles: 'No downloadable files in the workspace',
     noCwd: 'This session has no workspace',
@@ -269,6 +273,7 @@
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId: rpcId(), method: endpoint, payload: { args: map[1](payload || {}) } }),
     }).then(function (r) {
+      if (r.status === 401) { gotoLogin(); throw new Error('unauthorized') }
       if (!r.ok) throw new Error('HTTP ' + r.status)
       return r.json()
     }).then(function (full) {
@@ -364,7 +369,7 @@
       if (f.streamId === STREAM_WS) return onWorkspaceFrame(f.value)
       if (followStreamId && f.streamId === followStreamId) return onFollowFrame(f.value)
     }
-    ws.onclose = function () { setConn(false); followStreamId = null; eventsClientId = null; scheduleMux() }
+    ws.onclose = function () { setConn(false); followStreamId = null; eventsClientId = null; checkAuth(); scheduleMux() }
     ws.onerror = function () { try { ws.close() } catch (e) {} }
   }
   function scheduleMux() {
@@ -541,7 +546,49 @@
       add.addEventListener('click', createSession)
       hd.appendChild(add)
     }
+    if (opts.menu) {
+      var mn = el('button', null, '⋯')
+      mn.setAttribute('aria-label', T.account)
+      mn.addEventListener('click', openAccountSheet)
+      hd.appendChild(mn)
+    }
     return hd
+  }
+
+  // ── auth：dsh-auth-gate 会话辅助 ────────────────────────────
+  // 移动页在 gate 之后：未登录时导航会被 302 到登录页，但页面内的 fetch/WS
+  // 只会收到 401。这里统一做「过期即回登录页」与「退出登录」。
+  var authRedirecting = false
+  var lastAuthCheck = 0
+  function gotoLogin() {
+    if (authRedirecting) return
+    authRedirecting = true
+    var next = location.pathname || '/_dsh-web-mobile/'
+    location.href = '/auth/login?next=' + encodeURIComponent(next)
+  }
+  function checkAuth() {
+    if (Date.now() - lastAuthCheck < 10000) return
+    lastAuthCheck = Date.now()
+    fetch('/auth/status', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null })
+      .then(function (v) { if (v && v.authenticated === false) gotoLogin() })
+      .catch(function () {})
+  }
+  function openAccountSheet() {
+    openSheet(function (sheet) {
+      sheet.appendChild(el('div', 'sheet-title', T.account))
+      var out = el('button', 'sheet-item', T.logout)
+      out.addEventListener('click', function () {
+        closeSheet()
+        // gate 的 /auth/logout 只接受 POST：用原生 form 提交，零 JS 依赖。
+        var f = document.createElement('form')
+        f.method = 'POST'
+        f.action = '/auth/logout?next=' + encodeURIComponent('/_dsh-web-mobile/')
+        document.body.appendChild(f)
+        f.submit()
+      })
+      sheet.appendChild(out)
+    })
   }
 
   // Header icons are inline SVG, not text glyphs: the visible ink of '⟳' and
@@ -607,14 +654,14 @@
   function renderListLoading() {
     var app = document.getElementById('app')
     app.textContent = ''
-    app.appendChild(renderHead(T.title, { refresh: true, add: true }))
+    app.appendChild(renderHead(T.title, { refresh: true, add: true, menu: true }))
     app.appendChild(el('div', 'loading', T.loading))
   }
 
   function renderListError() {
     var app = document.getElementById('app')
     app.textContent = ''
-    app.appendChild(renderHead(T.title, { refresh: true, add: true }))
+    app.appendChild(renderHead(T.title, { refresh: true, add: true, menu: true }))
     app.appendChild(el('div', 'err', T.loadFail))
   }
 
@@ -648,7 +695,7 @@
   function renderList() {
     var app = document.getElementById('app')
     app.textContent = ''
-    app.appendChild(renderHead(T.title, { refresh: true, add: true }))
+    app.appendChild(renderHead(T.title, { refresh: true, add: true, menu: true }))
     var list = el('div', 'list')
 
     // Hide blank sessions AND archived sessions (official grouping-surface
@@ -1437,7 +1484,7 @@
     app.textContent = ''
     var s = state.byId[id]
     var title = state.titles[id] || (s ? sessionTitle(s) : T.untitled)
-    app.appendChild(renderHead(title, { back: true }))
+    app.appendChild(renderHead(title, { back: true, menu: true }))
     app.appendChild(el('div', 'loading', T.loading))
 
     chat = {
@@ -1458,7 +1505,7 @@
     // cursor 是日志切点（含被打包包走的 chunk 事件），maxSeq 从切点起算防重
     if (typeof chat.cursor === 'number' && chat.cursor > chat.maxSeq) chat.maxSeq = chat.cursor
     app.textContent = ''
-    app.appendChild(renderHead(state.titles[id] || (s ? sessionTitle(s) : T.untitled), { back: true }))
+    app.appendChild(renderHead(state.titles[id] || (s ? sessionTitle(s) : T.untitled), { back: true, menu: true }))
     chat.box = el('div', 'chat')
     app.appendChild(chat.box)
     fullRenderChat()
@@ -1477,7 +1524,7 @@
     if (!chat || state.view !== 'chat') return
     var app = chat.app
     app.textContent = ''
-    app.appendChild(renderHead(state.titles[chat.id] || T.untitled, { back: true }))
+    app.appendChild(renderHead(state.titles[chat.id] || T.untitled, { back: true, menu: true }))
     app.appendChild(el('div', 'err', T.historyFail))
   }
 

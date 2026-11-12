@@ -221,22 +221,22 @@ export type EndpointEntry = [string, EndpointMapper]
 export interface ChatState {
   id: string
   title?: string
-  events?: JournalRecord[]
+  events: JournalRecord[]
   cursor?: unknown
   hasMore?: boolean
-  projections?: { values?: Record<string, unknown>; [key: string]: any } | null
+  projections: { values?: Record<string, unknown>; [key: string]: any } | null
   baseSeq?: number | null
   running?: boolean
-  steps?: Record<string, StepState>
-  cards?: Record<string, ToolCardState>
+  steps: Record<string, StepState>
+  cards: Record<string, ToolCardState>
   [key: string]: any
 }
 
 export interface StepState {
   node?: any
   body?: any
-  texts?: Record<string, string>
-  reasoning?: Record<string, string>
+  texts: Record<string, string>
+  reasoning: Record<string, string>
   reasonEl?: any
   [key: string]: any
 }

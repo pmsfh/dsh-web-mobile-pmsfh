@@ -250,7 +250,7 @@
   }
 
   // ── tiny DOM helpers ────────────────────────────────────────
-  /** @param {string} tag @param {string} [cls] @param {string} [text] @returns {any} generic element factory — callers narrow by usage */
+  /** @param {string} tag @param {string | null} [cls] @param {string | null} [text] @returns {any} generic element factory — callers narrow by usage */
   function el(tag, cls, text) {
     var n = document.createElement(tag)
     if (cls) n.className = cls
@@ -715,6 +715,7 @@
   }
 
   function renderListLoading() {
+    /** @type {any} */
     var app = document.getElementById('app')
     app.textContent = ''
     app.appendChild(renderHead(T.title, { refresh: true, add: true, menu: true }))
@@ -722,6 +723,7 @@
   }
 
   function renderListError() {
+    /** @type {any} */
     var app = document.getElementById('app')
     app.textContent = ''
     app.appendChild(renderHead(T.title, { refresh: true, add: true, menu: true }))
@@ -758,6 +760,7 @@
   }
 
   function renderList() {
+    /** @type {any} */
     var app = document.getElementById('app')
     app.textContent = ''
     app.appendChild(renderHead(T.title, { refresh: true, add: true, menu: true }))
@@ -1282,8 +1285,8 @@
   //   chat.steps    live step bubbles keyed 'turn:step'
   //   chat.cards    tool cards keyed by callId
   /** @typedef {import('../types.d.ts').ChatState} ChatState */
-  /** @type {ChatState | null} */
-  var chat = null
+  /** @type {ChatState} */
+  var chat = /** @type {any} */ (null)
 
   function textOfBlocks(/** @type {any} */ content) {
     if (typeof content === 'string') return content
@@ -1619,6 +1622,7 @@
   }
 
   function openChat(/** @type {any} */ id) {
+    /** @type {any} */
     var app = document.getElementById('app')
     app.textContent = ''
     var s = state.byId[id]
@@ -1725,6 +1729,7 @@
   /** @type {any} */
   var toastTimer = null
   function toast(/** @type {any} */ text) {
+    /** @type {any} */
     var t = document.querySelector('.mtoast')
     if (!t) {
       t = el('div', 'mtoast')
@@ -1942,6 +1947,7 @@
     var inp = document.createElement('input')
     inp.type = 'file'
     inp.addEventListener('change', function () {
+      /** @type {any} */
       var f = inp.files && inp.files[0]
       if (!f) return
       if (f.size > MAX_ATTACH_BYTES) { toast(T.fileTooBig); return }
@@ -2315,11 +2321,11 @@
     var m = h.match(/^#\/s\/(.+)$/)
     if (m) {
       state.view = 'chat'
-      chat = null
+      chat = /** @type {any} */ (null)
       openChat(decodeURIComponent(m[1]))
     } else {
       state.view = 'list'
-      chat = null
+      chat = /** @type {any} */ (null)
       closeFollow()
       loadList()
     }
@@ -2342,6 +2348,7 @@
   // interactive-widget; this covers engines that don't).
   function fitViewport() {
     var h = window.visualViewport ? window.visualViewport.height : window.innerHeight
+    /** @type {any} */
     var app = document.getElementById('app')
     if (app) app.style.height = Math.round(h) + 'px'
   }

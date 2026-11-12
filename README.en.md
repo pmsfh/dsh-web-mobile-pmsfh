@@ -59,7 +59,19 @@ The official DSH web UI is designed for desktop layouts; its sidebar, floating c
 
 ## Installation
 
-Requirements: a DSH version from the table above, Node 24 or later, and pnpm on PATH for the `dsh plugin` command (`corepack enable` or `npm i -g pnpm`).
+Requirements: a DSH version from the table above, Node 24 or later, and pnpm on PATH for the `dsh plugin` command. Install one of these:
+
+```sh
+corepack enable
+```
+
+or
+
+```sh
+npm i -g pnpm
+```
+
+Once pnpm is available, install the plugin:
 
 ```sh
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git

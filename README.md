@@ -59,7 +59,19 @@ DSH 的官方 Web UI 按桌面布局设计，侧边栏、悬浮输入框、文�
 
 ## 安装
 
-前置：DSH 版本见上表；Node ≥ 24；`dsh plugin` 需要 pnpm（`corepack enable` 或 `npm i -g pnpm`）
+前置：DSH 版本见上表；Node ≥ 24；`dsh plugin` 需要 pnpm，装一个即可
+
+```sh
+corepack enable
+```
+
+或
+
+```sh
+npm i -g pnpm
+```
+
+装好 pnpm 后，安装插件：
 
 ```sh
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git

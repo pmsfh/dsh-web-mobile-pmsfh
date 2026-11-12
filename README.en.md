@@ -24,14 +24,14 @@ The official DSH web UI is designed for desktop layouts; its sidebar, floating c
 - Grouped by workspace and collapsible; create, rename, and delete workspaces. Deleting only removes a workspace from the list; the directory and session records are kept, and its sessions move to "Ungrouped".
 - Long-press a session to archive it. When creating a session, choose a permission level: read-only / workspace write / Full access (with a risk confirmation).
 
-**Chat**
+**Conversations**
 
 - Streaming output; collapsible reasoning; a notice when context is compacted.
 - Markdown and code block rendering; stop a response while it generates; queued messages stay visible; scroll up to load earlier messages; stick to the bottom, with a one-tap return when you scroll away.
 
 **Attachments**
 
-- Pick files on the device and send them with the message through the official chat attachment channel (8 MB per file, removable before sending, not written to the workspace).
+- Pick files on the device and send them with the message through the official conversation attachment channel (8 MB per file, removable before sending, not written to the workspace).
 
 **Approvals**
 
@@ -115,7 +115,7 @@ The bare path redirects with a 302 to the trailing-slash form.
 ## Known limitations
 
 - Subagent sessions are not listed (matching the desktop client: subagents do not take top-level rows).
-- Attachments use the official chat attachment channel and are not written to the workspace; workspace files are read-only.
+- Attachments use the official conversation attachment channel and are not written to the workspace; workspace files are read-only.
 - The plugin relies on DSH's internal session-check endpoint: if a DSH upgrade changes it, the plugin deactivates rather than allowing access.
 - Single-user use is recommended: DSH itself does not separate accounts, so a shared deployment needs isolation in front.
 

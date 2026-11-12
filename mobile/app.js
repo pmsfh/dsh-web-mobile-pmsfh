@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * dsh-web-mobile-pmsfh standalone mobile page — rc.1 wire.
  *
@@ -26,6 +27,17 @@
  */
 (function () {
   'use strict'
+
+  /** @typedef {import('../types.d.ts').SessionListResult} SessionListResult */
+  /** @typedef {import('../types.d.ts').SessionFollowFrame} SessionFollowFrame */
+  /** @typedef {import('../types.d.ts').SessionSnapshotFrame} SessionSnapshotFrame */
+  /** @typedef {import('../types.d.ts').FollowHeader} FollowHeader */
+  /** @typedef {import('../types.d.ts').WorkspaceFollowFrame} WorkspaceFollowFrame */
+  /** @typedef {import('../types.d.ts').WorkspaceBaselineValue} WorkspaceBaselineValue */
+  /** @typedef {import('../types.d.ts').Workspace} Workspace */
+  /** @typedef {import('../types.d.ts').MuxItemFrame} MuxItemFrame */
+  /** @typedef {import('../types.d.ts').EventsResultArgs} EventsResultArgs */
+  /** @typedef {import('../types.d.ts').RpcError} RpcError */
 
   // ── i18n ────────────────────────────────────────────────────
   var zh = (navigator.language || 'zh').toLowerCase().indexOf('zh') === 0
@@ -216,6 +228,7 @@
   }
 
   // ── markdown (vendored markdown-it; raw HTML disabled) ─────
+  /** @type {any} */
   var md = null
   try {
     if (window.markdownit) {
@@ -226,15 +239,17 @@
       var cjk = window.markdownitCjkFriendly
       if (cjk) md.use(cjk.default || cjk)
       // Defence in depth: only web/mail links may become anchors/images.
-      md.validateLink = function (url) { return /^(https?:|mailto:)/i.test(String(url || '')) }
+      md.validateLink = /** @param {*} url @returns {boolean} */ function (url) { return /^(https?:|mailto:)/i.test(String(url || '')) }
     }
   } catch (e) { console.error('[md init]', e) }
+  /** @param {*} text @returns {string | null} */
   function renderMd(text) {
     if (!md) return null
     try { return md.render(text) } catch (e) { return null }
   }
 
   // ── tiny DOM helpers ────────────────────────────────────────
+  /** @param {string} tag @param {string} [cls] @param {string} [text] @returns {any} generic element factory — callers narrow by usage */
   function el(tag, cls, text) {
     var n = document.createElement(tag)
     if (cls) n.className = cls
@@ -246,13 +261,18 @@
   // ── RPC layer ───────────────────────────────────────────────
   // rc.1: endpoint = <namespace>/<method>; payload always {args:{named}}.
   // Call sites keep the rc.2-era names/args; this table translates.
+  /** Fresh client-side id for one unary RPC or composer message. @returns {string} */
   function rpcId() {
     if (crypto.randomUUID) return crypto.randomUUID()
     return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
   }
 
-  function wrapReq(p) { return { request: p } }   // controller 方法：args.request
-  function wrapSelf(p) { return p }               // 直接命名参数
+  /** controller 方法：args.request 包装。 @param {Record<string, unknown>} p @returns {Record<string, unknown>} */
+  function wrapReq(p) { return { request: p } }
+  /** 直接命名参数。 @param {Record<string, unknown>} p @returns {Record<string, unknown>} */
+  function wrapSelf(p) { return p }
+  /** @typedef {import('../types.d.ts').EndpointEntry} EndpointEntry */
+  /** @type {Object.<string, EndpointEntry>} */
   var ENDPOINTS = {
     'session.list': ['session/list', function (p) { return { _request: p || {} } }],
     'session.create': ['session/create', wrapReq],
@@ -274,6 +294,13 @@
     '$events/result': ['$events/result', wrapSelf],
   }
 
+  /**
+   * Unary RPC via POST /api/<endpoint>. Result shapes per method live in
+   * ../types.d.ts (SessionListResult, DirectoryListResult, FileUploadResult, …).
+   * @param {string} method ENDPOINTS key, or a raw `<namespace>/<method>` when unmapped
+   * @param {Record<string, unknown>} [payload] named args, translated by the endpoint table
+   * @returns {Promise<any>} the response envelope's `value` on ok; throws Error with `.code` otherwise
+   */
   function rpc(method, payload) {
     var map = ENDPOINTS[method] || [method, wrapSelf]
     var endpoint = map[0]
@@ -290,7 +317,7 @@
       if (!res) throw new Error('bad envelope')
       if (!res.ok) {
         var e = new Error((res.error && res.error.message) || 'rpc error')
-        e.code = res.error && res.error.code
+        ;(/** @type {Error & {code?: string}} */ (e)).code = res.error && res.error.code
         throw e
       }
       return res.value
@@ -300,8 +327,11 @@
   // ── remote.mux: logical streams over one WebSocket ──────────
   // Internal event bus keeps the rc.2 handler registry shape: real frames and
   // probe-injected synthetic frames share the same dispatch.
+  /** @type {Object.<string, Array<(a: any, b: any) => void>>} */
   var muxHandlers = Object.create(null)
+  /** @param {string} type @param {(a: any, b: any) => void} fn */
   function onMux(type, fn) { (muxHandlers[type] = muxHandlers[type] || []).push(fn) }
+  /** @param {string} type @param {*} [a] @param {*} [b] */
   function dispatchBus(type, a, b) {
     var hs = muxHandlers[type]
     if (!hs) return
@@ -324,17 +354,21 @@
     if (connEl) connEl.classList.toggle('on', muxOpen)
   }
 
+  /** @param {Record<string, unknown>} obj frame to send on the mux socket, if open */
   function wsSend(obj) {
     try { muxWs && muxWs.readyState === 1 && muxWs.send(JSON.stringify(obj)) } catch (e) {}
   }
+  /** @param {string} streamId @param {string} endpoint @param {Record<string, unknown>} [args] */
   function openStream(streamId, endpoint, args) {
     wsSend({ type: 'open', streamId: streamId, endpoint: endpoint, payload: { args: args || {} } })
   }
+  /** @param {string} streamId */
   function closeStream(streamId) {
     wsSend({ type: 'cancel', streamId: streamId })
   }
 
   // 当前聊天会话的 follow 流（快照=尾部窗口，之后逐事件推送）
+  /** @param {string} sessionId */
   function openFollow(sessionId) {
     if (followStreamId) closeStream(followStreamId)
     followStreamId = 'sf-' + sessionId
@@ -400,6 +434,7 @@
   }
 
   // ── 会话 follow 流帧（session/follow）────────────────────────
+  /** @param {SessionFollowFrame} v */
   function onFollowFrame(v) {
     if (!v || !chat || !followStreamId) return
     var sid = followStreamId.slice(3)
@@ -423,12 +458,14 @@
       return
     }
   }
+  /** @param {FollowHeader} [h] @returns {boolean} */
   function runningOfHeader(h) {
     return !!(h && (h.running === true || h.status === 'running'))
   }
 
   // ── 工作区 follow 流（workspace/follow）：baseline + 增量 ────
   var STREAM_WS = 'ws'
+  /** @param {WorkspaceBaselineValue} [b] */
   function applyWorkspaceBaseline(b) {
     state.workspaces = (b && b.items) || []
     state.archived = Object.create(null)
@@ -444,6 +481,7 @@
       for (var si = 0; si < ids.length; si++) state.memberOf[ids[si]] = ws.workspaceId
     }
   }
+  /** @param {WorkspaceFollowFrame} v */
   function onWorkspaceFrame(v) {
     if (!v || typeof v.type !== 'string') return
     if (v.type === 'baseline') { applyWorkspaceBaseline(v.value); scheduleRefresh(true); return }
@@ -475,6 +513,7 @@
   }
 
   // ── state ───────────────────────────────────────────────────
+  /** @type {{ sessions: any[], byId: Object.<string, any>, titles: Object.<string, string>, cwds: Object.<string, string>, archived: Object.<string, boolean>, workspaces: Workspace[], memberOf: Object.<string, string>, collapsed: Object.<string, boolean>, view: string, [key: string]: any }} */
   var state = {
     sessions: [],
     byId: Object.create(null),
@@ -606,7 +645,7 @@
   // flex-centering could not fix. SVG geometry is identical on every font.
   var SVG_NS = 'http://www.w3.org/2000/svg'
   function svgIcon(build) {
-    var svg = document.createElementNS(SVG_NS, 'svg')
+    var svg = /** @type {SVGElement} */ (document.createElementNS(SVG_NS, 'svg'))
     svg.setAttribute('viewBox', '0 0 24 24')
     svg.setAttribute('width', '22')
     svg.setAttribute('height', '22')
@@ -1296,13 +1335,13 @@
   }
 
   function liveText(st) {
-    var idx = Object.keys(st.texts).sort(function (a, b) { return a - b })
+    var idx = Object.keys(st.texts).sort(function (a, b) { return Number(a) - Number(b) })
     var out = []
     for (var i = 0; i < idx.length; i++) out.push(st.texts[idx[i]])
     return out.join('')
   }
   function liveReasoning(st) {
-    var idx = Object.keys(st.reasoning).sort(function (a, b) { return a - b })
+    var idx = Object.keys(st.reasoning).sort(function (a, b) { return Number(a) - Number(b) })
     var out = []
     for (var i = 0; i < idx.length; i++) out.push(st.reasoning[idx[i]])
     return out.join('')
@@ -2222,7 +2261,8 @@
   // rc.1：列表活性事件 = $events 总线的 api-session/*（added/removed/
   // activity/status/error）。标题等投影变化随刷新重拉自然生效。
   var refreshTimer = null
-  function scheduleRefresh() {
+  /** @param {boolean} [_force] ignored — kept for the historical `scheduleRefresh(true)` call sites */
+  function scheduleRefresh(_force) {
     if (state.view !== 'list') return
     if (refreshTimer) return
     refreshTimer = setTimeout(function () { refreshTimer = null; loadList() }, 600)

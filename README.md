@@ -2,7 +2,7 @@
 
 **中文** · [English](README.en.md)
 
-**给 DeepSeek Harness 一个专用的移动端页面。** 移动设备打开主站自动进入，会话、聊天、附件、审批都在这个为窄屏设计的独立界面里，桌面端 UI 与主仓库零改动。
+**给 DeepSeek Harness 一个专用的移动端页面** 移动设备打开主站自动进入，会话、聊天、附件、审批都在这个为窄屏设计的独立界面里，桌面端 UI 与主仓库零改动
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)
@@ -12,7 +12,7 @@
 
 `dsh-web-mobile-pmsfh` 是 DSH 的移动端页面插件：在 `/dsh-web-mobile-pmsfh/` 下挂一套独立的移动页，直接调 DSH 自己的接口，不加载官方前端，也不改官方代码，桌面端完全不介入
 
-DSH 的官方 Web UI 按桌面布局设计，侧边栏、悬浮输入框、文件选择在窄屏移动设备上都不顺手。
+DSH 的官方 Web UI 按桌面布局设计，侧边栏、悬浮输入框、文件选择在窄屏移动设备上都不顺手
 
 - 触摸 + 窄屏 ≤768px 的移动设备访问主站时，自动进入移动页
 - 想用桌面版：列表底部「进入桌面版」，只对当前这次浏览生效，重新打开还是移动页
@@ -59,7 +59,7 @@ DSH 的官方 Web UI 按桌面布局设计，侧边栏、悬浮输入框、文�
 
 ## 安装
 
-前置：DSH 版本见上表；Node ≥ 24；`dsh plugin` 需要 pnpm，装一个即可
+前置条件：DSH 版本见上表；Node ≥ 24；`dsh plugin` 需要 pnpm，装一个即可，安装示例
 
 ```sh
 corepack enable
@@ -78,13 +78,13 @@ git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
 dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 ```
 
+上面的 `dsh plugin` 命令是给 `dsh web` 启动的服务端安装插件；DSH 桌面客户端自己管理插件，如果也要在桌面端使用，在客户端的设置 → 插件页里安装
+
 然后重启 DSH 服务，按你的部署方式来
 
 ```sh
 sudo systemctl restart dsh-web
 ```
-
-上面的命令是给 `dsh web` 启动的服务端安装插件；DSH 桌面客户端自己管理插件，如果也要在桌面端使用，在客户端的设置 → 插件页里安装
 
 安装为 link 方式，克隆目录要保留
 
@@ -104,7 +104,7 @@ sudo systemctl restart dsh-web
 | `/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js` | markdown 渲染 |
 | `/dsh-web-mobile-pmsfh/vendor/markdown-it-cjk-friendly.min.js` | 中文标点下的 `**` 兼容 |
 
-裸路径 302 到带斜杠形式。
+裸路径 302 到带斜杠形式
 
 ## 安全
 
@@ -128,7 +128,7 @@ mobile/            移动页（原生 JS，无构建）
 cordis.patch.yml   插件挂载配置
 ```
 
-实现要点：静态资源按内容哈希打 ETag，重复访问回 304；内置依赖缓存 30 天。
+实现要点：静态资源按内容哈希打 ETag，重复访问回 304；内置依赖缓存 30 天
 
 本地调试建议用独立 `DSH_HOME` 和端口，避免影响生产数据：
 

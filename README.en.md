@@ -78,13 +78,13 @@ git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
 dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 ```
 
+The `dsh plugin` command above installs the plugin for the server started by `dsh web`. The DSH desktop client manages its own plugins; to use it there too, open Settings → Plugins in the client.
+
 Then restart DSH however your deployment runs it
 
 ```sh
 sudo systemctl restart dsh-web
 ```
-
-These commands install the plugin for the server started by `dsh web`. The DSH desktop client manages its own plugins; to use it there too, open Settings → Plugins in the client.
 
 The install is a link, so keep the cloned directory.
 

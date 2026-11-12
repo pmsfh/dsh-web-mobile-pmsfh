@@ -122,7 +122,9 @@ sudo systemctl restart dsh-web
 
 The install is a link, so keep the cloned directory.
 
-To uninstall:
+## Uninstall
+
+Remove the plugin from the `web` profile and restart:
 
 ```sh
 dsh plugin --profile web remove dsh-web-mobile-pmsfh

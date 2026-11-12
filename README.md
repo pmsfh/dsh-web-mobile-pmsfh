@@ -122,7 +122,9 @@ sudo systemctl restart dsh-web
 
 安装为 link 方式，克隆目录要保留
 
-卸载：
+## 卸载
+
+从 `web` profile 移除插件后重启：
 
 ```sh
 dsh plugin --profile web remove dsh-web-mobile-pmsfh

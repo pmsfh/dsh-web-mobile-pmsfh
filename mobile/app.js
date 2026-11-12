@@ -481,6 +481,7 @@
     var ids = (b && b.archivedSessionIds) || []
     for (var i = 0; i < ids.length; i++) state.archived[ids[i]] = true
     rebuildMemberOf()
+    state.wsReady = true
   }
   function rebuildMemberOf() {
     state.memberOf = Object.create(null)
@@ -493,7 +494,14 @@
   /** @param {WorkspaceFollowFrame} v */
   function onWorkspaceFrame(v) {
     if (!v || typeof v.type !== 'string') return
-    if (v.type === 'baseline') { applyWorkspaceBaseline(v.value); scheduleRefresh(true); return }
+    if (v.type === 'baseline') {
+      applyWorkspaceBaseline(v.value)
+      // 首屏：会话已到、基线刚到，直接渲染（此时归档集合才完整），
+      // 不再等 600ms 的去抖刷新，避免加载态多停一拍。
+      if (state.view === 'list' && state.sessions.length) { clearWsFallback(); renderList() }
+      else scheduleRefresh(true)
+      return
+    }
     if (v.type === 'upsert') {
       var w = v.workspace
       if (!w) return
@@ -522,7 +530,7 @@
   }
 
   // ── state ───────────────────────────────────────────────────
-  /** @type {{ sessions: any[], byId: Object.<string, any>, titles: Object.<string, string>, cwds: Object.<string, string>, archived: Object.<string, boolean>, workspaces: Workspace[], memberOf: Object.<string, string>, collapsed: Object.<string, boolean>, view: string, [key: string]: any }} */
+  /** @type {{ sessions: any[], byId: Object.<string, any>, titles: Object.<string, string>, cwds: Object.<string, string>, archived: Object.<string, boolean>, workspaces: Workspace[], memberOf: Object.<string, string>, collapsed: Object.<string, boolean>, view: string, wsReady: boolean, [key: string]: any }} */
   var state = {
     sessions: [],
     byId: Object.create(null),
@@ -533,6 +541,7 @@
     memberOf: Object.create(null), // sessionId -> workspaceId (official grouping key)
     collapsed: Object.create(null), // group key -> true (folded group)
     view: 'list',
+    wsReady: false, // workspace/follow baseline applied (archived ids known)
   }
 
   /** @param {any} s @returns {string} */
@@ -695,8 +704,16 @@
   }
 
   // ── list view ───────────────────────────────────────────────
+  // 工作区基线未到时先不渲染列表：归档会话 id 只在 workspace/follow 的
+  // baseline 里，提前渲染会让已归档会话闪一下再消失（2026-11-12 实测）。
+  /** @type {any} */
+  var wsFallbackTimer = null
+  function clearWsFallback() {
+    if (wsFallbackTimer) { clearTimeout(wsFallbackTimer); wsFallbackTimer = null }
+  }
   function loadList() {
     if (state.view !== 'list') return // chat owns the DOM; list reloads on return
+    clearWsFallback()
     renderListLoading()
     // 工作区数据由 workspace/follow 流喂进 state（baseline+增量，掉线重开重基线）；
     // 会话列表走一元 RPC。工作区流失败只表现为「全在未分组」，列表照出。
@@ -706,6 +723,14 @@
       state.byId = Object.create(null)
       for (var i = 0; i < state.sessions.length; i++) {
         state.byId[state.sessions[i].sessionId] = state.sessions[i]
+      }
+      if (!state.wsReady) {
+        // 基线没到，归档集合未知，先保持加载态；1.5 秒兜底按「全在未分组」出列表。
+        wsFallbackTimer = setTimeout(function () {
+          wsFallbackTimer = null
+          if (state.view === 'list') renderList()
+        }, 1500)
+        return
       }
       renderList()
     }).catch(function (e) {

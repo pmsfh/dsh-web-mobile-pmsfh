@@ -43,6 +43,8 @@ dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 
 上面的 `dsh plugin` 命令是给 `dsh web` 启动的服务端安装插件；DSH 桌面客户端自己管理插件，如果也要在桌面端使用，在客户端的设置 → 插件页里安装
 
+安装为 link 方式，克隆目录要保留
+
 然后重启 DSH 服务，按你的部署方式来
 
 ```sh
@@ -119,8 +121,6 @@ dsh-web-mobile-pmsfh/
 git pull
 sudo systemctl restart dsh-web
 ```
-
-安装为 link 方式，克隆目录要保留
 
 ## 卸载
 

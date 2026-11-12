@@ -72,7 +72,7 @@ dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 sudo systemctl restart dsh-web
 ```
 
-上面的命令装进 `web` profile（`dsh web` 使用的那个）；桌面客户端的 profile 由客户端自己管理，要装桌面端请走客户端内的设置 → 插件
+上面的命令是给 `dsh web` 启动的服务端安装插件；DSH 桌面客户端自己管理插件，如果也要在桌面端使用，在客户端的设置 → 插件页里安装
 
 安装为 link 方式，克隆目录要保留
 
@@ -80,7 +80,7 @@ sudo systemctl restart dsh-web
 
 卸载：执行 `dsh plugin --profile web remove dsh-web-mobile-pmsfh` 后重启
 
-首次访问：用移动设备打开主站会自动跳转，也可以直接开 `https://<域名>/dsh-web-mobile-pmsfh/`。如果没跳，检查这次浏览是否点过「进入桌面版」；那是会话级偏好（sessionStorage），关掉页面重开即恢复默认
+首次访问：用移动设备打开主站会自动跳转，也可以直接开 `https://<域名>/dsh-web-mobile-pmsfh/`，如果没跳，检查这次浏览是否点过「进入桌面版」；那是会话级偏好（sessionStorage），关掉页面重开即恢复默认
 
 ## 路由
 

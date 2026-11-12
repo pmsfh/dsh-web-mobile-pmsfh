@@ -2,7 +2,7 @@
 
 **中文** · [English](README.en.md)
 
-**给 DeepSeek Harness 一个专用的移动端页面。** 移动设备打开主站自动进入，会话、聊天、附件、审批都在这个为窄屏设计的独立界面里；桌面端 UI 与主仓库零改动。
+**给 DeepSeek Harness 一个专用的移动端页面。** 移动设备打开主站自动进入，会话、聊天、附件、审批都在这个为窄屏设计的独立界面里，桌面端 UI 与主仓库零改动。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)

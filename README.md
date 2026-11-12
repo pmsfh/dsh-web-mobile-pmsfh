@@ -59,15 +59,18 @@ DSH 的官方 Web UI 按桌面布局设计，侧边栏、悬浮输入框、文�
 
 ## 安装
 
-前置：DSH 版本见上表；Node ≥ 24。
+前置：DSH 版本见上表；Node ≥ 24；`dsh plugin` 需要 pnpm（`corepack enable` 或 `npm i -g pnpm`）。
 
 ```sh
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
 dsh plugin --profile web add ./dsh-web-mobile-pmsfh
-sudo systemctl restart dsh-web
 ```
 
+然后重启 DSH 服务，按你的部署方式来（systemd 示例：`sudo systemctl restart dsh-web`）。
+
 上面的命令装进 `web` profile（`dsh web` 使用的那个）；桌面客户端的 profile 由客户端自己管理，要装桌面端请走客户端内的 设置 → 插件。
+
+安装为 link 方式，克隆目录要保留：升级时在该目录执行 `git pull` 后重启；卸载用 `dsh plugin --profile web remove dsh-web-mobile-pmsfh` 后重启。
 
 首次访问：用移动设备打开主站会自动跳转，也可以直接开 `https://<域名>/dsh-web-mobile-pmsfh/`。如果没跳，检查这次浏览是否点过「进入桌面版」；那是会话级偏好（sessionStorage），关掉页面重开即恢复默认
 

@@ -59,15 +59,18 @@ The official DSH web UI is designed for desktop layouts; its sidebar, floating c
 
 ## Installation
 
-Requirements: a DSH version from the table above; Node 24 or later.
+Requirements: a DSH version from the table above, Node 24 or later, and pnpm on PATH for the `dsh plugin` command (`corepack enable` or `npm i -g pnpm`).
 
 ```sh
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
 dsh plugin --profile web add ./dsh-web-mobile-pmsfh
-sudo systemctl restart dsh-web
 ```
 
+Then restart DSH however your deployment runs it (systemd example: `sudo systemctl restart dsh-web`).
+
 These commands install into the `web` profile (the one used by `dsh web`). The desktop client manages its own profile; to install there, use Settings → Plugins in the client.
+
+The install is a link, so keep the cloned directory: to upgrade, run `git pull` there and restart; to uninstall, run `dsh plugin --profile web remove dsh-web-mobile-pmsfh` and restart.
 
 First visit: opening the main site on a mobile device redirects automatically, or you can open `https://<domain>/dsh-web-mobile-pmsfh/` directly. If it does not redirect, check whether "Open desktop version" was chosen in this browsing session; that preference is session-scoped (sessionStorage) and resets when the page is closed.
 

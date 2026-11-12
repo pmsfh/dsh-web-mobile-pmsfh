@@ -120,7 +120,9 @@ git pull
 sudo systemctl restart dsh-web
 ```
 
-安装为 link 方式，克隆目录要保留；卸载：
+安装为 link 方式，克隆目录要保留
+
+卸载：
 
 ```sh
 dsh plugin --profile web remove dsh-web-mobile-pmsfh

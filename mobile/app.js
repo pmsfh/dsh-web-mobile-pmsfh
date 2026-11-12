@@ -41,6 +41,7 @@
 
   // ── i18n ────────────────────────────────────────────────────
   var zh = (navigator.language || 'zh').toLowerCase().indexOf('zh') === 0
+  /** @type {Record<string, string>} */
   var T = zh ? {
     title: '会话',
     newSession: '新建会话',
@@ -256,6 +257,7 @@
     if (text !== undefined) n.textContent = text
     return n
   }
+  /** @param {any} s @returns {string} */
   function esc(s) { return String(s == null ? '' : s) }
 
   // ── RPC layer ───────────────────────────────────────────────
@@ -343,12 +345,17 @@
   var muxRetry = 0
   var muxOpen = false
   var muxEverOpen = false
+  /** @type {WebSocket | null} */
   var muxWs = null
+  /** @type {any} connection status dot element */
   var connEl = null
+  /** @type {string | null} $events ready 帧给的 clientId（waterfall 应答用） */
   var eventsClientId = null      // $events ready 帧给的 clientId（waterfall 应答用）
   var STREAM_EVENTS = 'ev'       // $events 的 streamId
+  /** @type {string | null} 当前聊天会话的 session/follow streamId */
   var followStreamId = null      // 当前聊天会话的 session/follow streamId
 
+  /** @param {boolean} on */
   function setConn(on) {
     muxOpen = !!on
     if (connEl) connEl.classList.toggle('on', muxOpen)
@@ -380,6 +387,7 @@
 
   function connectMux() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    /** @type {WebSocket} */
     var ws
     try {
       ws = new WebSocket(proto + '//' + location.host + '/api/remote.mux')
@@ -421,6 +429,7 @@
   }
 
   // ── $events 全局总线帧 ──────────────────────────────────────
+  /** @param {any} v */
   function onEventsFrame(v) {
     if (!v || typeof v.type !== 'string') return
     if (v.type === 'ready') { eventsClientId = v.clientId; return }
@@ -526,12 +535,14 @@
     view: 'list',
   }
 
+  /** @param {any} s @returns {string} */
   function sessionTitle(s) {
     var t = state.titles[s.sessionId]
     if (t == null) t = s.projections && s.projections.values && s.projections.values.title
     return t || T.untitled
   }
 
+  /** @param {number} ts @returns {string} */
   function relTime(ts) {
     var diff = Date.now() - ts
     var m = Math.floor(diff / 60000)
@@ -542,6 +553,7 @@
     return Math.floor(h / 24) + T.daysAgo
   }
 
+  /** @param {string} [p] @returns {string} */
   function baseName(p) {
     if (!p) return zh ? '默认工作区' : 'default'
     var parts = String(p).replace(/\/+$/, '').split('/')
@@ -567,6 +579,7 @@
   loadCollapsed()
 
   // ── shared header ───────────────────────────────────────────
+  /** @param {string} title @param {any} [opts] @returns {any} */
   function renderHead(title, opts) {
     opts = opts || {}
     var hd = el('div', 'hd')
@@ -623,7 +636,7 @@
       .catch(function () {})
   }
   function openAccountSheet() {
-    openSheet(function (sheet) {
+    openSheet(function (/** @type {any} */ sheet) {
       sheet.appendChild(el('div', 'sheet-title', T.account))
       var out = el('button', 'sheet-item', T.logout)
       out.addEventListener('click', function () {
@@ -644,6 +657,7 @@
   // vs desktop fonts all differ), which produced a 1–2px misalignment that
   // flex-centering could not fix. SVG geometry is identical on every font.
   var SVG_NS = 'http://www.w3.org/2000/svg'
+  /** @param {(svg: any) => void} build @returns {any} */
   function svgIcon(build) {
     var svg = /** @type {SVGElement} */ (document.createElementNS(SVG_NS, 'svg'))
     svg.setAttribute('viewBox', '0 0 24 24')
@@ -658,6 +672,7 @@
     build(svg)
     return svg
   }
+  /** @param {any} svg @param {string} d @returns {any} */
   function svgPath(svg, d) {
     var p = document.createElementNS(SVG_NS, 'path')
     p.setAttribute('d', d)
@@ -716,19 +731,21 @@
   // Long-press (>=500ms hold, <=10px drift) fires onFire once. Returns a
   // handle whose wasFired() stays true briefly after finger-up, so the
   // element's click handler can swallow the trailing synthesized tap.
+  /** @param {any} node @param {() => void} onFire */
   function attachLongPress(node, onFire) {
+    /** @type {any} long-press timer id */
     var lpT = null
     var sx = 0
     var sy = 0
     var fired = false
-    node.addEventListener('touchstart', function (ev) {
+    node.addEventListener('touchstart', function (/** @type {any} */ ev) {
       var t = ev.touches[0]
       sx = t.clientX; sy = t.clientY
       fired = false
       clearTimeout(lpT)
       lpT = setTimeout(function () { fired = true; onFire() }, 500)
     }, { passive: true })
-    node.addEventListener('touchmove', function (ev) {
+    node.addEventListener('touchmove', function (/** @type {any} */ ev) {
       var t = ev.touches[0]
       if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) clearTimeout(lpT)
     }, { passive: true })
@@ -769,7 +786,8 @@
         var ws0 = state.workspaces[gi0]
         gIdx[ws0.workspaceId] = { key: ws0.workspaceId, name: ws0.title || baseName(ws0.path), items: [] }
       }
-      var ungrouped = { key: 'ungrouped', name: T.ungrouped, items: [] }
+      /** @type {any} */
+    var ungrouped = { key: 'ungrouped', name: T.ungrouped, items: [] }
       for (var i = 0; i < rows.length; i++) {
         var s = rows[i]
         var g = gIdx[state.memberOf[s.sessionId]] || ungrouped
@@ -840,7 +858,7 @@
 
     var dl = el('a', 'desktop-link', T.desktop)
     dl.href = '/'
-    dl.addEventListener('click', function (ev) {
+    dl.addEventListener('click', function (/** @type {any} */ ev) {
       ev.preventDefault()
       // Session-scoped escape: next fresh visit defaults back to mobile.
       try { sessionStorage.setItem('dsh-web-mobile-pmsfh:desktop', '1') } catch (e) {}
@@ -852,8 +870,8 @@
   }
 
   // ── session row sheet (long-press): archive ─────────────────
-  function openSessionSheet(s) {
-    openSheet(function (sheet) {
+  function openSessionSheet(/** @type {any} */ s) {
+    openSheet(function (/** @type {any} */ sheet) {
       // Menu caption is fixed (a raw session title reads like page content);
       // the actual session title stays as a secondary line for confirmation.
       sheet.appendChild(el('div', 'sheet-title', T.sessionActions))
@@ -877,8 +895,8 @@
   }
 
   // ── workspace sheet (long-press group header): rename/delete ─
-  function openWorkspaceSheet(ws) {
-    openSheet(function (sheet) {
+  function openWorkspaceSheet(/** @type {any} */ ws) {
+    openSheet(function (/** @type {any} */ sheet) {
       sheet.appendChild(el('div', 'sheet-title', ws.title || baseName(ws.path)))
       sheet.appendChild(el('div', 'ws-sub', ws.path))
 
@@ -903,7 +921,7 @@
     })
   }
 
-  function renderRename(sheet, ws) {
+  function renderRename(/** @type {any} */ sheet, /** @type {any} */ ws) {
     sheet.textContent = ''
     sheet.appendChild(el('div', 'sheet-title', T.wsRename))
     var inp = el('input', 'q-custom')
@@ -937,7 +955,7 @@
 
   // Generic confirm dialog (workspace delete gate). Official wording comes
   // from the caller; the danger action needs an explicit confirm tap.
-  function confirmDialog(title, desc, actionLabel, onYes) {
+  function confirmDialog(/** @type {any} */ title, /** @type {any} */ desc, /** @type {any} */ actionLabel, /** @type {any} */ onYes) {
     var mask = el('div', 'mask')
     var box = el('div', 'cs-confirm')
     box.appendChild(el('div', 'cs-confirm-title', title))
@@ -951,7 +969,7 @@
     actions.appendChild(ok)
     box.appendChild(actions)
     mask.appendChild(box)
-    mask.addEventListener('click', function (ev) { if (ev.target === mask) mask.remove() })
+    mask.addEventListener('click', function (/** @type {any} */ ev) { if (ev.target === mask) mask.remove() })
     document.body.appendChild(mask)
   }
 
@@ -971,11 +989,11 @@
     { value: 'danger-full-access', descKey: 'permFullAccessDesc', risky: true },
   ]
 
-  function permLabel(value) {
+  function permLabel(/** @type {any} */ value) {
     // Same product labels as the official UI: title-cased names, but the
     // dangerous preset is always marketed as "Full access".
     if (value === 'danger-full-access') return 'Full access'
-    return value.split('-').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join(' ')
+    return value.split('-').map(function (/** @type {any} */ w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join(' ')
   }
 
   function createSession() {
@@ -990,16 +1008,17 @@
   // workspace.create, mirroring the official desktop directory browser.
   // preselectWsId/keepPerm carry the user's choices across the round trip
   // through the directory browser (perm would otherwise be lost).
-  function openCreateSheet(preselectWsId, keepPerm) {
+  function openCreateSheet(/** @type {any} */ preselectWsId, /** @type {any} */ keepPerm) {
     // A session only BELONGS to a workspace when created with workspaceId —
     // passing cwd alone leaves it unaffiliated (renders as "Ungrouped").
     // rc.1: 工作区清单直接读 workspace/follow 流喂的 state（开机即 baseline，
     // 增量实时），无需再发一次性 RPC。
+    /** @type {any} */
     var chosen = { ws: null, perm: keepPerm || null } // ws: payload fragment; perm: preset value
     buildSheet(state.workspaces, false)
 
-    function buildSheet(wss, wsFailed) {
-      openSheet(function (sheet) {
+    function buildSheet(/** @type {any} */ wss, /** @type {any} */ wsFailed) {
+      openSheet(function (/** @type {any} */ sheet) {
         sheet.appendChild(el('div', 'sheet-title', T.newSession))
 
         sheet.appendChild(el('div', 'cs-section', T.wsSection))
@@ -1055,13 +1074,13 @@
         if (chosen.perm) markPerm()
         refresh()
 
-        function pickWs(btn, payload, path) {
+        function pickWs(/** @type {any} */ btn, /** @type {any} */ payload, /** @type {any} */ path) {
           chosen.ws = payload
           chosen.wsPath = path
           mark(btn, 'cs-ws')
           refresh()
         }
-        function pickPerm(btn, value) {
+        function pickPerm(/** @type {any} */ btn, /** @type {any} */ value) {
           if (value === 'danger-full-access') {
             confirmFullAccess(function () {
               chosen.perm = value
@@ -1083,7 +1102,7 @@
             if (label === permLabel(chosen.perm)) all[k].classList.add('active')
           }
         }
-        function mark(btn, cls) {
+        function mark(/** @type {any} */ btn, /** @type {any} */ cls) {
           var all = sheet.querySelectorAll('.' + cls)
           for (var k = 0; k < all.length; k++) all[k].classList.remove('active')
           btn.classList.add('active')
@@ -1097,10 +1116,10 @@
     // Directory browser rendered INSIDE the same sheet (no nested mask):
     // list one level, drill down, go up via crumbs, create child folders,
     // and register the current directory as a workspace.
-    function renderDirBrowser(sheet) {
+    function renderDirBrowser(/** @type {any} */ sheet) {
       loadDir(null) // null = host home directory
 
-      function loadDir(path) {
+      function loadDir(/** @type {any} */ path) {
         sheet.textContent = ''
         sheet.appendChild(el('div', 'sheet-title', T.dirTitle))
         sheet.appendChild(el('div', 'sheet-empty', T.loading))
@@ -1119,7 +1138,7 @@
         })
       }
 
-      function paintListing(v) {
+      function paintListing(/** @type {any} */ v) {
         sheet.textContent = ''
         sheet.appendChild(el('div', 'sheet-title', T.dirTitle))
         sheet.appendChild(el('div', 'ws-sub dir-path', v.path))
@@ -1146,6 +1165,7 @@
 
         // New child folder: inline name form, created via host.createDirectory.
         var nfBtn = el('button', 'sheet-item dir-row', '➕ ' + T.dirNewFolder)
+        /** @type {any} inline new-folder form element */
         var nfForm = null
         nfBtn.addEventListener('click', function () {
           if (nfForm) return
@@ -1196,7 +1216,7 @@
 
   // Full access keeps the official risk gate: an explicit acknowledge
   // dialog before the preset can be applied (desktop wording, verbatim).
-  function confirmFullAccess(onYes) {
+  function confirmFullAccess(/** @type {any} */ onYes) {
     var mask = el('div', 'mask')
     var box = el('div', 'cs-confirm')
     box.appendChild(el('div', 'cs-confirm-title', T.faTitle))
@@ -1220,11 +1240,11 @@
     actions.appendChild(enable)
     box.appendChild(actions)
     mask.appendChild(box)
-    mask.addEventListener('click', function (ev) { if (ev.target === mask) mask.remove() })
+    mask.addEventListener('click', function (/** @type {any} */ ev) { if (ev.target === mask) mask.remove() })
     document.body.appendChild(mask)
   }
 
-  function doCreate(chosen) {
+  function doCreate(/** @type {any} */ chosen) {
     var payload = chosen.ws
     // Mode is fixed to the standard system preset — never a user choice on
     // the mobile surface (desktop offers four presets; mobile stays standard).
@@ -1247,7 +1267,7 @@
   // plain text (burns tokens, no effect). commands/execute applies the preset
   // cleanly: permission/preset event only, no turn. 0.2.2: attachment field is
   // `submittedAttachments` (rc.1 called it `images`).
-  function applyPerm(sid, preset) {
+  function applyPerm(/** @type {any} */ sid, /** @type {any} */ preset) {
     return rpc('commands/execute', { agentId: sid, line: '/permission ' + preset, submittedAttachments: [] })
       .catch(function (e) { console.error('[permission]', e); toast(T.permFail) })
   }
@@ -1261,9 +1281,11 @@
   //   chat.hasMore  older pages exist
   //   chat.steps    live step bubbles keyed 'turn:step'
   //   chat.cards    tool cards keyed by callId
+  /** @typedef {import('../types.d.ts').ChatState} ChatState */
+  /** @type {ChatState | null} */
   var chat = null
 
-  function textOfBlocks(content) {
+  function textOfBlocks(/** @type {any} */ content) {
     if (typeof content === 'string') return content
     if (!content || !content.length) return ''
     var out = []
@@ -1273,7 +1295,7 @@
     }
     return out.join('\n')
   }
-  function reasoningOfBlocks(content) {
+  function reasoningOfBlocks(/** @type {any} */ content) {
     if (!content || !content.length) return ''
     var out = []
     for (var i = 0; i < content.length; i++) {
@@ -1288,9 +1310,10 @@
   // delta pushes content past the threshold and following stops mid-answer.
   // Instead keep an explicit intent flag: programmatic scrolls never clear it,
   // only a real upward gesture does; coming back near the bottom re-arms it.
-  function gapToBottom(box) {
+  function gapToBottom(/** @type {any} */ box) {
     return box.scrollHeight - box.scrollTop - box.clientHeight
   }
+  /** @param {any} box @param {any} [smooth] */
   function scrollBottom(box, smooth) {
     if (!box) return
     if (chat) chat.ignoreScrollUntil = Date.now() + 180
@@ -1302,7 +1325,7 @@
       box.scrollTop = box.scrollHeight
     })
   }
-  function maybeScroll(box) {
+  function maybeScroll(/** @type {any} */ box) {
     if (!box || !chat || chat.stick === false) return
     scrollBottom(box)
   }
@@ -1318,10 +1341,10 @@
     paintJump()
   }
 
-  function stepKey(turn, step) { return turn + ':' + step }
+  function stepKey(/** @type {any} */ turn, /** @type {any} */ step) { return turn + ':' + step }
 
   // Create or reuse the live assistant bubble for one step.
-  function stepBubble(turn, step) {
+  function stepBubble(/** @type {any} */ turn, /** @type {any} */ step) {
     var key = stepKey(turn, step)
     var st = chat.steps[key]
     if (st) return st
@@ -1334,20 +1357,20 @@
     return st
   }
 
-  function liveText(st) {
+  function liveText(/** @type {any} */ st) {
     var idx = Object.keys(st.texts).sort(function (a, b) { return Number(a) - Number(b) })
     var out = []
     for (var i = 0; i < idx.length; i++) out.push(st.texts[idx[i]])
     return out.join('')
   }
-  function liveReasoning(st) {
+  function liveReasoning(/** @type {any} */ st) {
     var idx = Object.keys(st.reasoning).sort(function (a, b) { return Number(a) - Number(b) })
     var out = []
     for (var i = 0; i < idx.length; i++) out.push(st.reasoning[idx[i]])
     return out.join('')
   }
 
-  function paintLiveStep(st) {
+  function paintLiveStep(/** @type {any} */ st) {
     // plain text while streaming (markdown lands on the final message event)
     st.body.textContent = liveText(st)
     var r = liveReasoning(st)
@@ -1372,12 +1395,12 @@
    * bubble chrome when there is nothing to show but the reasoning fold;
    * `empty` removes the node entirely when neither text nor reasoning exists.
    */
-  function syncStepChrome(st, text, hasReason) {
+  function syncStepChrome(/** @type {any} */ st, /** @type {any} */ text, /** @type {any} */ hasReason) {
     st.node.classList.toggle('bare', !text && hasReason)
     st.node.classList.toggle('empty', !text && !hasReason)
   }
 
-  function finalizeStep(turn, step, message, interrupted) {
+  function finalizeStep(/** @type {any} */ turn, /** @type {any} */ step, /** @type {any} */ message, /** @type {any} */ interrupted) {
     var key = stepKey(turn, step)
     var st = chat.steps[key]
     if (!st) st = stepBubble(turn, step)
@@ -1404,7 +1427,7 @@
     delete chat.steps[key]
   }
 
-  function argsSummary(name, argsStr) {
+  function argsSummary(/** @type {any} */ name, /** @type {any} */ argsStr) {
     var a
     try { a = JSON.parse(argsStr) } catch (e) { return '' }
     if (!a || typeof a !== 'object') return ''
@@ -1417,7 +1440,7 @@
     return ''
   }
 
-  function toolCard(callId) {
+  function toolCard(/** @type {any} */ callId) {
     var c = chat.cards[callId]
     if (c) return c
     var node = el('div', 'tcard')
@@ -1437,7 +1460,7 @@
     return c
   }
 
-  function paintToolResult(card, text, isError) {
+  function paintToolResult(/** @type {any} */ card, /** @type {any} */ text, /** @type {any} */ isError) {
     card.st.textContent = isError ? '✗' : '✓'
     card.st.classList.add(isError ? 'bad' : 'ok')
     card.node.classList.add(isError ? 'bad' : 'done')
@@ -1451,7 +1474,7 @@
   }
 
   // Fold one entry (history {event, view} or live mux frame) into the DOM.
-  function foldEvent(entry) {
+  function foldEvent(/** @type {any} */ entry) {
     var ev = entry && entry.event ? entry.event : entry
     if (!ev || !ev.type) return
     var d = ev.data || {}
@@ -1595,7 +1618,7 @@
     scrollBottom(chat.box)
   }
 
-  function openChat(id) {
+  function openChat(/** @type {any} */ id) {
     var app = document.getElementById('app')
     app.textContent = ''
     var s = state.byId[id]
@@ -1648,7 +1671,7 @@
     paintModelSeat()
   }
 
-  function onFollowError(err) {
+  function onFollowError(/** @type {any} */ err) {
     console.error('[follow]', err)
     if (!chat || state.view !== 'chat') return
     var app = chat.app
@@ -1699,8 +1722,9 @@
   // ═══════════════ phase 3: composer / sheets / answers ════════════════
 
   // ── toast ───────────────────────────────────────────────────
+  /** @type {any} */
   var toastTimer = null
-  function toast(text) {
+  function toast(/** @type {any} */ text) {
     var t = document.querySelector('.mtoast')
     if (!t) {
       t = el('div', 'mtoast')
@@ -1713,17 +1737,18 @@
   }
 
   // ── generic bottom sheet ────────────────────────────────────
+  /** @type {any} */
   var sheetEl = null
   var sheetOpenedAt = 0
   function closeSheet() {
     if (sheetEl) { sheetEl.remove(); sheetEl = null }
   }
-  function openSheet(build) {
+  function openSheet(/** @type {any} */ build) {
     closeSheet()
     var mask = el('div', 'mask')
     var sheet = el('div', 'sheet')
     sheetOpenedAt = Date.now()
-    mask.addEventListener('click', function (ev) {
+    mask.addEventListener('click', function (/** @type {any} */ ev) {
       // The synthesized click trailing a long-press lands on the mask at the
       // press point — swallow it or the sheet would close on finger lift.
       if (Date.now() - sheetOpenedAt < 500) return
@@ -1760,7 +1785,7 @@
     }
   }
 
-  function buildComposer(app, sessionId) {
+  function buildComposer(/** @type {any} */ app, /** @type {any} */ sessionId) {
     var wrap = el('div', 'composer')
     var chip = el('div', 'queue-chip')
     chip.hidden = true
@@ -1872,13 +1897,13 @@
   // 读取工作区文件（scope = 当前会话 id，path 相对工作区根，'' 为根）。
   var MAX_ATTACH_BYTES = 8 * 1024 * 1024
 
-  function attachList(sessionId) {
+  function attachList(/** @type {any} */ sessionId) {
     var m = state.attachments || (state.attachments = Object.create(null))
     if (!m[sessionId]) m[sessionId] = []
     return m[sessionId]
   }
 
-  function paintAttachChips(sessionId) {
+  function paintAttachChips(/** @type {any} */ sessionId) {
     if (!chat || chat.id !== sessionId || !chat.attachRow) return
     var list = attachList(sessionId)
     var row = chat.attachRow
@@ -1901,8 +1926,8 @@
     }
   }
 
-  function openAttachSheet(sessionId) {
-    openSheet(function (sheet) {
+  function openAttachSheet(/** @type {any} */ sessionId) {
+    openSheet(function (/** @type {any} */ sheet) {
       var up = el('button', 'sheet-item', '⇪ ' + T.upload)
       up.addEventListener('click', function () { closeSheet(); pickAndUpload(sessionId) })
       var down = el('button', 'sheet-item', '⇩ ' + T.download)
@@ -1913,7 +1938,7 @@
     })
   }
 
-  function pickAndUpload(sessionId) {
+  function pickAndUpload(/** @type {any} */ sessionId) {
     var inp = document.createElement('input')
     inp.type = 'file'
     inp.addEventListener('change', function () {
@@ -1940,12 +1965,12 @@
     inp.click()
   }
 
-  function openDownloadSheet(sessionId) {
+  function openDownloadSheet(/** @type {any} */ sessionId) {
     rpc('workspaceFiles/list', { workspaceFileScopeId: sessionId, path: '.' })
       .then(function (v) {
         var entries = (v && v.entries) || []
-        var files = entries.filter(function (e) { return e && e.type === 'file' })
-        openSheet(function (sheet) {
+        var files = entries.filter(function (/** @type {any} */ e) { return e && e.type === 'file' })
+        openSheet(function (/** @type {any} */ sheet) {
           if (!files.length) { sheet.appendChild(el('div', 'sheet-empty', T.noFiles)); return }
           for (var i = 0; i < files.length; i++) {
             (function (f) {
@@ -1962,7 +1987,7 @@
       .catch(function (e) { console.error('[wslist]', e); toast(T.downloadFail) })
   }
 
-  function downloadFile(sessionId, name) {
+  function downloadFile(/** @type {any} */ sessionId, /** @type {any} */ name) {
     // readBytes 走 multipart/form-data：metadata 是 JSON 信封，字节在独立 part 里
     // （envelope.attachments[0].part），不是普通 JSON 响应。
     fetch('/api/workspaceFiles/readBytes', {
@@ -1998,7 +2023,7 @@
           var att = (meta.attachments || [])[0]
           var blob = att && fields.get(att.part)
           if (!blob || typeof blob.arrayBuffer !== 'function') throw new Error('missing attachment part')
-          return blob.arrayBuffer().then(function (buf) { return new Uint8Array(buf) })
+          return blob.arrayBuffer().then(function (/** @type {any} */ buf) { return new Uint8Array(buf) })
         })
       })
       .then(function (bytes) {
@@ -2019,7 +2044,7 @@
   // ── model sheet ─────────────────────────────────────────────
   // Composer model-seat label: "model · effort". rc.1: cur 来自投影
   // （{provider,model,reasoningEffort?}），目录 groups 只用来解析 effort 显示名。
-  function modelSeatLabel(cur, groups) {
+  function modelSeatLabel(/** @type {any} */ cur, /** @type {any} */ groups) {
     if (!cur || !cur.model) return null
     var label = cur.model
     var reasoning = null
@@ -2046,8 +2071,8 @@
     return label
   }
 
-  function openModelSheet(sessionId) {
-    openSheet(function (sheet) {
+  function openModelSheet(/** @type {any} */ sessionId) {
+    openSheet(function (/** @type {any} */ sheet) {
       sheet.appendChild(el('div', 'sheet-empty', T.modelLoading))
       rpc('session.models', {}).then(function (v) {
         if (!sheetEl) return // sheet closed meanwhile
@@ -2114,6 +2139,7 @@
               chip.addEventListener('click', function () {
                 if (on) { closeSheet(); return } // already effective
                 closeSheet()
+                /** @type {any} */
                 var payload = { sessionId: sessionId, provider: cur.provider, model: cur.model }
                 if (opt.effort !== undefined) payload.reasoningEffort = opt.effort
                 rpc('session.selectModel', payload).then(function (r) {
@@ -2144,7 +2170,7 @@
   // waterfall 帧经 dispatchBus 带 meta {clientId, eventId, agentId}；应答 =
   // POST /api/$events/result {args:{clientId,eventId,outcome:{kind:'result',value}}}。
   // 服务端取消（他端已答/超时）→ 'waterfall/cancel' 总线 → 关弹层。
-  function answerWaterfall(meta, value) {
+  function answerWaterfall(/** @type {any} */ meta, /** @type {any} */ value) {
     return rpc('$events/result', {
       clientId: meta.clientId,
       eventId: meta.eventId,
@@ -2152,6 +2178,7 @@
     }).catch(function (e) { console.error('[answer]', e) })
   }
 
+  /** @type {any} */
   var answerEl = null // current approval/question modal
   function closeAnswer() {
     if (answerEl) { answerEl.remove(); answerEl = null }
@@ -2187,6 +2214,7 @@
     if (!chat || !meta || meta.agentId !== chat.id) return
     closeAnswer()
     var qs = (req && req.questions) || []
+    /** @type {Object.<string, any>} */
     var picks = {} // question id -> { selected: [], custom: '' }
     var mask = el('div', 'mask')
     var sheet = el('div', 'sheet')
@@ -2238,6 +2266,7 @@
       for (var qi2 = 0; qi2 < qs.length; qi2++) {
         var q2 = qs[qi2]
         var p = picks[q2.id]
+        /** @type {any} */
         var item = { id: q2.id, selected: p.selected }
         if (p.custom && p.custom.trim()) item.custom = p.custom.trim()
         answers.push(item)
@@ -2260,6 +2289,7 @@
   // ── mux-driven list refresh ─────────────────────────────────
   // rc.1：列表活性事件 = $events 总线的 api-session/*（added/removed/
   // activity/status/error）。标题等投影变化随刷新重拉自然生效。
+  /** @type {any} */
   var refreshTimer = null
   /** @param {boolean} [_force] ignored — kept for the historical `scheduleRefresh(true)` call sites */
   function scheduleRefresh(_force) {
@@ -2300,7 +2330,7 @@
   // Used by the Playwright probes to exercise approval/question modals
   // (real gated tools are not guaranteed to ask in every deployment).
   window.__dshwm = {
-    dispatch: function (type, frame, rpcIdValue) {
+    dispatch: function (/** @type {any} */ type, /** @type {any} */ frame, /** @type {any} */ rpcIdValue) {
       var hs = muxHandlers[type] || []
       for (var i = 0; i < hs.length; i++) hs[i](frame, rpcIdValue || 'debug-rpc')
     },

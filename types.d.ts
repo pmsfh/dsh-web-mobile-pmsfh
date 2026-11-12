@@ -218,6 +218,33 @@ export type EndpointMapper = (p: any) => any
 
 export type EndpointEntry = [string, EndpointMapper]
 
+export interface ChatState {
+  id: string
+  title?: string
+  events?: JournalRecord[]
+  cursor?: unknown
+  hasMore?: boolean
+  projections?: { values?: Record<string, unknown>; [key: string]: any } | null
+  baseSeq?: number | null
+  running?: boolean
+  steps?: Record<string, StepState>
+  cards?: Record<string, ToolCardState>
+  [key: string]: any
+}
+
+export interface StepState {
+  node?: any
+  body?: any
+  texts?: Record<string, string>
+  reasoning?: Record<string, string>
+  reasonEl?: any
+  [key: string]: any
+}
+
+export interface ToolCardState {
+  [key: string]: any
+}
+
 // ── cordis host surface (lib/) ─────────────────────────────────
 
 declare global {

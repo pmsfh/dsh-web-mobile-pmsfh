@@ -2,9 +2,14 @@
 
 [简体中文](README.md) | **English**
 
-A dedicated mobile page for DeepSeek Harness: open the main site on a mobile device and you land in a separate interface built for narrow screens, with sessions, chat, attachments, and approvals in one place. The desktop client UI and the upstream repository stay untouched.
+A dedicated mobile page for DeepSeek Harness: open the main site on a mobile
+device and you land in a separate interface built for narrow screens, with
+sessions, conversations, attachments, and approvals in one place. The desktop
+interface and the upstream repository stay untouched.
 
-It serves a standalone mobile UI at `/dsh-web-mobile-pmsfh/`, calls DSH's own APIs directly, does not load the official frontend, and does not modify official code.
+It serves a standalone mobile page at `/dsh-web-mobile-pmsfh/`, calls DSH's own
+APIs directly, does not load the official frontend, and does not modify
+official code.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)
@@ -13,54 +18,80 @@ It serves a standalone mobile UI at `/dsh-web-mobile-pmsfh/`, calls DSH's own AP
 
 ## Features
 
-- **Sessions**: grouped by workspace and collapsible; create, rename, and delete workspaces — deleting only removes a workspace from the list, keeping the directory and session records, and its sessions move to "Ungrouped"; long-press a session to archive it, and pick a permission level when creating one (read-only / workspace write / Full access, with a risk confirmation)
-- **Conversations**: streaming output, collapsible reasoning, a notice when context is compacted; markdown and code block rendering, stop while generating, queued messages stay visible, scroll up for earlier messages, stick to the bottom with a one-tap return
-- **Attachments**: pick files on the device and send them with the message through the official conversation attachment channel, 8 MB per file, removable before sending, not written to the workspace
-- **Approvals**: out-of-scope operations raise an approval card with allow once, deny, enter your own, or later
+- **Sessions**: grouped by workspace and collapsible; create, rename, and
+  delete workspaces — deleting only removes a workspace from the list, keeping
+  the directory and session records, and its sessions move to "Ungrouped";
+  long-press a session to archive it, and pick a permission level when creating
+  one (read-only / workspace write / Full access, with a risk confirmation)
+- **Conversations**: streaming output, collapsible reasoning, a notice when
+  context is compacted; markdown and code block rendering, stop while
+  generating, queued messages stay visible, scroll up for earlier messages,
+  stick to the bottom with a one-tap return
+- **Attachments**: pick files on the device and send them with the message
+  through the official conversation attachment channel, 8 MB per file,
+  removable before sending, not written to the workspace
+- **Approvals**: out-of-scope operations raise an approval card with allow
+  once, deny, later, or a custom command of your own
 - **Models**: switch model and reasoning level within a session
 - **Files**: list and download workspace files, read-only
-- **Interface**: Chinese and English follow the browser, light and dark follow the system; "Open desktop version" at the bottom of the list applies to this browsing session only; uses the existing DSH login state with guidance when it expires and a sign-out action
+- **Interface**: Chinese and English follow the browser, light and dark follow
+  the system; "Open desktop version" at the bottom of the list applies to this
+  browsing session only; uses the existing DSH login state with guidance when
+  it expires and a sign-out action
 
 ## Quick Start
 
-Requirements: DSH `0.2.2-rc.1` (see Compatibility), Node 24 or later, and pnpm for the `dsh plugin` command.
+Requirements: DSH `0.2.2-rc.1` (see Compatibility), Node.js 24 or later, and
+pnpm for the `dsh plugin` command — enable it through corepack or install it
+globally:
 
-```sh
+```bash
 corepack enable
 ```
 
 or
 
-```sh
+```bash
 npm i -g pnpm
 ```
 
-Once pnpm is available, install the plugin one of two ways.
+Once pnpm is available, install the plugin one of two ways; after installing,
+restart DSH, adjusting the restart command to how your deployment runs it.
 
-From npm, so new versions show up as update prompts:
+### Option 1: Install from npm
 
-```sh
+Ready to use, with update prompts when new versions are released:
+
+```bash
 dsh plugin --profile web add dsh-web-mobile-pmsfh
 ```
 
-Or from source, in which case keep the cloned directory:
+### Option 2: Install from source
 
-```sh
+For your own modifications; keep the cloned directory, since updates pull inside
+it:
+
+```bash
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
 dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 ```
 
-The `dsh plugin` command above installs the plugin for the server started by `dsh web`. The DSH desktop client manages its own plugins; to use it there too, open Settings → Plugins in the client.
+The `dsh plugin` command above installs the plugin for the server started by
+`dsh web`. The DSH desktop client manages its own plugins; to use it there too,
+open Settings → Plugins in the client.
 
-If your npm points at a regional mirror and cannot find the package, append `--registry=https://registry.npmjs.org`.
+If your npm points at a regional mirror and cannot find the package, append
+`--registry=https://registry.npmjs.org`.
 
-Then restart DSH however your deployment runs it:
-
-```sh
-sudo systemctl restart dsh-web
+```bash
+sudo systemctl restart dsh-web   # restart the DSH service
 ```
 
-First visit: opening the main site on a mobile device redirects automatically, or you can open `https://<domain>/dsh-web-mobile-pmsfh/` directly; if it does not redirect, check whether "Open desktop version" was chosen in this browsing session — that preference is session-scoped (sessionStorage) and resets when the page is closed.
+First visit: opening the main site on a mobile device redirects automatically,
+or you can open `https://<domain>/dsh-web-mobile-pmsfh/` directly; if it does
+not redirect, check whether "Open desktop version" was chosen in this browsing
+session — that preference is session-scoped (sessionStorage) and resets when
+the page is closed and reopened.
 
 ## Compatibility
 
@@ -71,9 +102,12 @@ First visit: opening the main site on a mobile device redirects automatically, o
 
 ## Tech Stack
 
-Node 24 · DeepSeek Harness `0.2.2-rc.1` · Cordis plugin · vanilla JavaScript (no build) · markdown-it
+Node.js 24 · DeepSeek Harness `0.2.2-rc.1` · Cordis plugin · vanilla
+JavaScript (no build) · markdown-it
 
-The mobile page is a single-page vanilla JS app; it does not load the official frontend or go through a bundler, and it has no extra runtime dependencies.
+The mobile page is a single-page vanilla JS app; it does not load the official
+frontend or go through a bundler, and it has no extra runtime dependencies —
+clone and run.
 
 ## Project Structure
 
@@ -92,10 +126,13 @@ dsh-web-mobile-pmsfh/
 
 ## Quality
 
-- **Types**: `types.d.ts` defines the protocol and data shapes; sources use `@ts-check`; `tsc --noEmit` is clean
+- **Types**: `types.d.ts` defines the protocol and data shapes; sources use
+  `@ts-check`; `tsc --noEmit` is clean
 - **Syntax**: `node --check` covers the host and the mobile page
-- **Assets**: content-hash ETags return 304 on repeat visits and take effect right after an upgrade
-- **No build chain**: the repository is the runtime artifact; no install or build step
+- **Assets**: content-hash ETags return 304 on repeat visits and take effect
+  right after an upgrade
+- **No build chain**: the repository is the runtime artifact; no install or
+  build step
 
 ## Routes
 
@@ -111,29 +148,40 @@ The bare path redirects with a 302 to the trailing-slash form.
 
 ## Security
 
-- No account system of its own: unauthenticated access to the plugin page is rejected by DSH's login check (401); if that check service is unavailable, the plugin returns 503 and does not let the request through.
-- When exposing the service through a reverse proxy, add authentication at the proxy layer (Basic Auth / OIDC / mTLS) and do not expose the DSH port directly to the internet.
-- Model output is rendered by markdown-it (`html: false`), and links are limited to `http/https/mailto`; HTML responses carry CSP, nosniff, no-referrer, and `X-Frame-Options: DENY`.
+- No account system of its own: unauthenticated access to the plugin page is
+  rejected by DSH's login check (401); if that check service is unavailable,
+  the plugin returns 503 and does not let the request through
+- When exposing the service through a reverse proxy, add authentication at the
+  proxy layer (Basic Auth / OIDC / mTLS) and do not expose the DSH port
+  directly to the internet
+- Model output is rendered by markdown-it (`html: false`), and links are
+  limited to `http/https/mailto`; HTML responses carry CSP, nosniff,
+  no-referrer, and `X-Frame-Options: DENY`
 
 ## Known limitations
 
-- Subagent sessions are not listed (matching the desktop client: subagents do not take top-level rows).
-- Attachments use the official conversation attachment channel and are not written to the workspace; workspace files are read-only.
-- The plugin relies on DSH's internal session-check endpoint: if a DSH upgrade changes it, the plugin deactivates rather than allowing access.
-- Single-user use is recommended: DSH itself does not separate accounts, so a shared deployment needs isolation in front.
+- Subagent sessions are not listed (matching the desktop client: subagents do
+  not take top-level rows)
+- Attachments use the official conversation attachment channel and are not
+  written to the workspace; workspace files are read-only
+- The plugin relies on DSH's internal session-check endpoint: if a DSH upgrade
+  changes it, the plugin deactivates rather than allowing access
+- Single-user use is recommended: DSH itself does not separate accounts, so a
+  shared deployment needs isolation in front
 
 ## Update
 
-Installed from npm: install the new version and restart.
+Installed from npm: update to the new version and restart.
 
-```sh
+```bash
 dsh plugin --profile web add dsh-web-mobile-pmsfh@latest
 sudo systemctl restart dsh-web
 ```
 
-Installed from source: pull the latest code in the cloned directory and restart.
+Installed from source: pull the latest code in the cloned directory and
+restart.
 
-```sh
+```bash
 git pull
 sudo systemctl restart dsh-web
 ```
@@ -142,21 +190,23 @@ sudo systemctl restart dsh-web
 
 Remove the plugin from the `web` profile and restart:
 
-```sh
+```bash
 dsh plugin --profile web remove dsh-web-mobile-pmsfh
 sudo systemctl restart dsh-web
 ```
 
 ## Development
 
-For local debugging, use a separate `DSH_HOME` and port so production data is unaffected:
+For local debugging, use a separate `DSH_HOME` and port so production data is
+unaffected:
 
-```sh
+```bash
 DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
 ```
 
-Implementation notes: static assets get content-hash ETags and return 304 on repeat visits; bundled dependencies are cached for 30 days.
+Implementation notes: static assets get content-hash ETags and return 304 on
+repeat visits; bundled dependencies are cached for 30 days.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 renlang119

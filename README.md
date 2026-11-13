@@ -16,19 +16,22 @@ DeepSeek Harness 的移动端页面插件：移动设备打开主站自动进入
 
 ## 功能概览
 
-- **会话**：按工作区分组折叠；新建、重命名、删除工作区，删除只从列表移除，
-  目录与会话记录保留，会话转入「未分组」；长按会话归档，新建时选权限档位
-  （仅可查看 / 工作区内修改 / 完全权限，完全权限启用前需确认风险）
-- **对话**：流式输出、思考过程折叠、上下文压缩提示；markdown 与代码块渲染，
-  生成中可停止，后续消息排队可见，上翻加载更早消息，贴底跟随与一键回到底部
-- **附件**：移动设备上选文件随消息发送，走官方对话附件通道，单文件上限
-  8 MB，发送前可移除，不落工作区
+- **会话**：按工作区分组折叠，另有「未分组」；新建、重命名、删除工作区
+  （删除只从列表移除，目录与会话记录保留，会话转入「未分组」）；长按归档
+  会话；新建会话时经内联目录浏览器选工作区，并选权限档位（仅可查看 /
+  工作区内修改 / 完全权限，完全权限启用前需确认风险）
+- **对话**：流式输出、思考过程折叠、上下文压缩提示；markdown 与代码块
+  渲染，生成中可停止，后续消息排队可见，上翻按页加载更早消息，贴底跟随
+  与一键回到底部
+- **附件**：移动设备上选文件，先上传拿到凭证再随下一条消息发送，走官方
+  对话附件通道；单文件上限 8 MB，发送前可移除，不落工作区
 - **审批**：越界操作弹出审批卡，可选允许一次、拒绝、稍后，也可自行输入后
   提交
 - **模型**：会话内切换模型与推理等级
 - **文件**：工作区文件列表与下载，只读
-- **界面**：中英双语跟随浏览器，深浅色跟随系统；列表底部「进入桌面版」只对
-  本次浏览生效；沿用 DSH 登录状态，过期有引导，可退出登录
+- **界面**：中英双语跟随浏览器，深浅色跟随系统；软键盘弹出时输入框骑在
+  键盘上方；列表底部「进入桌面版」只对本次浏览生效，桌面端右下角常驻
+  「📱」浮标可回移动版；沿用 DSH 登录状态，过期有引导，可退出登录
 
 ## 快速开始
 
@@ -112,6 +115,58 @@ dsh-web-mobile-pmsfh/
 └─ tsconfig.json      仅类型检查，不产出构建物
 ```
 
+## 架构
+
+插件分三个部分，全部落在插件目录内，主仓库零改动；`cordis.patch.yml`
+把插件插入 profile 层栈完成挂载：
+
+| 组件 | 职责 |
+| --- | --- |
+| `lib/index.js` | host 侧：注册 `/dsh-web-mobile-pmsfh/` 下的静态路由，全部置于 DSH 登录门之后 |
+| `client/client.js` | 桌面端注入：把触屏窄屏（coarse pointer 且视口 ≤ 768px）从官方界面跳转过来 |
+| `mobile/` | 独立移动页：原生 JS 单页应用，不加载官方前端、不走打包器 |
+
+移动页与 DSH 的通信全部走 DSH 自身的 wire 协议（Typert Gateway），没有
+插件私有端点：
+
+- `POST /api/<method>`：一元 RPC（会话、工作区、模型、文件等操作）
+- `WS /api/remote.mux`：帧复用长连接（会话日志流、工作区基线、事件总线）
+- `POST /api/$events/result`：审批与问答应答
+
+静态路由共 5 条：
+
+| 路径 | 内容 |
+| --- | --- |
+| `/dsh-web-mobile-pmsfh/` | 移动页（裸路径 302 跳转到带斜杠形式） |
+| `/dsh-web-mobile-pmsfh/app.js` | 页面脚本 |
+| `/dsh-web-mobile-pmsfh/app.css` | 页面样式 |
+| `/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js` | markdown 渲染 |
+| `/dsh-web-mobile-pmsfh/vendor/markdown-it-cjk-friendly.min.js` | CJK 标点下的 `**` 处理 |
+
+页面文件每次请求从磁盘读取（`no-cache`，内容不变时 304），插件更新并
+重启 dsh-web 后立即生效；vendor 文件按内容哈希缓存 30 天（`immutable`）。
+
+## DSH 接口依赖
+
+移动页直接调用下列 DSH 内部接口（`session/follow`、`workspace/follow`
+与 `$events` 走 mux 长连接，其余走一元 RPC）：
+
+| 接口 | 用途 |
+| --- | --- |
+| `session/list`/`session/create`/`session/prompt`/`session/cancel` | 会话列表、创建、发消息、停止 |
+| `session/selectModel` / `session/modelCatalog` | 模型与推理等级选择 |
+| `session/page` / `session/follow` | 历史分页与实时日志流 |
+| `workspace/create` / `workspace/rename` / `workspace/delete` | 工作区管理 |
+| `workspace/archiveSession`/`workspace/follow` | 会话归档与工作区基线流 |
+| `directoryPicker/list`/`directoryPicker/createDirectory` | 新建工作区的内联目录浏览器 |
+| `commands/execute` | 权限档位设置（`/permission` 命令） |
+| `fileUploads/upload` | 附件上传，返回凭证随下一条消息发送 |
+| `workspaceFiles/list`/`workspaceFiles/readBytes` | 工作区文件列表与下载 |
+| `$events/result` | 审批与问答应答 |
+
+这些是 DSH 内部接口，没有稳定承诺：DSH 升级若改动签名，插件会不激活
+而不是放行（见「兼容性」与「已知限制」）。
+
 ## 质量
 
 - **类型**：`types.d.ts` 定义协议与数据形状，源码带 `@ts-check`，
@@ -119,18 +174,6 @@ dsh-web-mobile-pmsfh/
 - **语法**：`node --check` 覆盖 host 侧与移动页
 - **静态资源**：按内容哈希发 ETag，重复访问返回 304，升级后立即生效
 - **无构建链**：仓库即运行物，没有安装与构建步骤
-
-## 路由
-
-| 路径 | 内容 |
-| --- | --- |
-| `/dsh-web-mobile-pmsfh/` | 移动页 |
-| `/dsh-web-mobile-pmsfh/app.js` | 页面脚本 |
-| `/dsh-web-mobile-pmsfh/app.css` | 页面样式 |
-| `/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js` | markdown 渲染 |
-| `/dsh-web-mobile-pmsfh/vendor/markdown-it-cjk-friendly.min.js` | CJK 标点下的 `**` 处理 |
-
-裸路径 302 跳转到带斜杠形式。
 
 ## 安全
 
@@ -141,6 +184,18 @@ dsh-web-mobile-pmsfh/
 - 模型输出经 markdown-it 渲染（`html: false`），链接限定
   `http/https/mailto`；HTML 响应带 CSP、nosniff、no-referrer 与
   `X-Frame-Options: DENY`
+
+## 自检与排查
+
+- 打不开插件页、被带回 DSH 登录页：未登录或会话过期，先在主站登录
+- 插件页返回 503：DSH 登录校验服务不可用，插件拒绝放行，先恢复 DSH
+  本体
+- 手机打开主站没有进移动页：本次浏览点过「进入桌面版」（会话级偏好，
+  sessionStorage），关闭页面重新打开即恢复默认；桌面端右下角「📱」浮标
+  可回移动版
+- 会话列表能开但模型列表不可用：DSH 后端模型服务异常，看 DSH 自身日志
+- 升级 DSH 后插件页打不开或行为异常：内部接口签名可能变动，对照
+  「兼容性」确认适配版本，等插件适配新版
 
 ## 已知限制
 
@@ -181,6 +236,17 @@ sudo systemctl restart dsh-web
 ```bash
 DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
 ```
+
+- 无构建链：仓库即运行产物，改动落盘后重启 dsh-web 即生效（页面文件
+  每次请求都从磁盘读）
+- 语法检查 `node --check`，类型检查 `tsc --noEmit`（`@ts-check` 逐文件
+  生效）
+- 调试钩子：页面暴露 `__dshwm.dispatch()`，可向 mux 注入合成帧，用于
+  演练审批与问答弹窗；`__frames` 记录收到的帧类型序列
+- 软键盘适配：`#app` 钉在 visualViewport 高度上（`interactive-widget`
+  meta 兜底），保证输入框骑在键盘上方
+- 词典集中在 `mobile/app.js` 顶部的 `T` 对象，中英两套键值对照，改
+  界面文案时两套都要动
 
 实现要点：静态资源按内容哈希发 ETag，重复访问返回 304；内置依赖缓存
 30 天。

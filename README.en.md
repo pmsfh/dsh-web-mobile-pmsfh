@@ -18,27 +18,30 @@ official code.
 
 ## Features
 
-- **Sessions**: grouped by workspace and collapsible; create, rename, and
-  delete workspaces — deleting only removes a workspace from the list, keeping
-  the directory and session records, and its sessions move to "Ungrouped";
-  long-press a session to archive it, and pick a permission level when creating
-  one (Read Only / Workspace Write / Full access; only Full access requires a
-  risk confirmation)
+- **Sessions**: grouped by workspace and collapsible, plus "Ungrouped"; create,
+  rename, and delete workspaces — deleting only removes a workspace from the
+  list, keeping the directory and session records, and its sessions move to
+  "Ungrouped"; long-press a session to archive it; creating a session picks the
+  workspace through an inline directory browser and a permission level (Read
+  Only / Workspace Write / Full access; only Full access requires a risk
+  confirmation)
 - **Conversations**: streaming output, collapsible reasoning, a notice when
   context is compacted; markdown and code block rendering, stop while
-  generating, queued messages stay visible, scroll up for earlier messages,
+  generating, queued messages stay visible, paginated history as you scroll up,
   stick to the bottom with a one-tap return
-- **Attachments**: pick files on the device and send them with the message
-  through the official conversation attachment channel, 8 MB per file,
-  removable before sending, not written to the workspace
+- **Attachments**: pick files on the device, upload for a receipt, and send them
+  with the next message through the official conversation attachment channel;
+  8 MB per file, removable before sending, not written to the workspace
 - **Approvals**: out-of-scope operations raise an approval card with allow
   once, deny, later, or a custom command of your own
 - **Models**: switch model and reasoning level within a session
 - **Files**: list and download workspace files, read-only
 - **Interface**: Chinese and English follow the browser, light and dark follow
-  the system; "Open desktop version" at the bottom of the list applies to this
-  browsing session only; uses the existing DSH login state with guidance when
-  it expires and a sign-out action
+  the system; the composer rides above the soft keyboard; "Open desktop
+  version" at the bottom of the list applies to this browsing session only,
+  and a floating "📱" button on the desktop page returns to the mobile page;
+  uses the existing DSH login state with guidance when it expires and a
+  sign-out action
 
 ## Quick Start
 
@@ -127,6 +130,63 @@ dsh-web-mobile-pmsfh/
 └─ tsconfig.json      type-check only, no emit
 ```
 
+## Architecture
+
+The plugin has three parts, all inside the plugin directory, with zero changes
+to the main repository; `cordis.patch.yml` inserts the plugin into the
+profile's layer stack:
+
+| Part | Role |
+| --- | --- |
+| `lib/index.js` | Host half: static routes behind the DSH login gate |
+| `client/client.js` | Client half: bounces phones (coarse pointer, ≤ 768px) to the mobile page |
+| `mobile/` | The mobile page: a vanilla JS single-page app, no official frontend, no bundler |
+
+The mobile page talks to DSH exclusively through DSH's own wire protocol
+(Typert Gateway) — there are no plugin-private endpoints:
+
+- `POST /api/<method>`: unary RPC (sessions, workspaces, models, files, …)
+- `WS /api/remote.mux`: frame-multiplexed long connection (session journal
+  streams, workspace baselines, the event bus)
+- `POST /api/$events/result`: approval and question answers
+
+Five static routes in total:
+
+| Path | Content |
+| --- | --- |
+| `/dsh-web-mobile-pmsfh/` | Mobile page (the bare path 302-redirects to the trailing-slash form) |
+| `/dsh-web-mobile-pmsfh/app.js` | Page script |
+| `/dsh-web-mobile-pmsfh/app.css` | Page styles |
+| `/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js` | Markdown rendering |
+| `/dsh-web-mobile-pmsfh/vendor/markdown-it-cjk-friendly.min.js` | `**` handling for CJK |
+
+Page files are read from disk per request (`no-cache`, 304 when unchanged), so
+a plugin update plus a dsh-web restart takes effect immediately; vendor files
+are content-hash cached for 30 days (`immutable`).
+
+## DSH API Dependencies
+
+The mobile page calls these internal DSH endpoints directly
+(`session/follow`, `workspace/follow`, and `$events` ride the mux connection;
+the rest are unary RPC):
+
+| Endpoint | Purpose |
+| --- | --- |
+| `session/list`/`session/create`/`session/prompt`/`session/cancel` | List/create/prompt/stop |
+| `session/selectModel` / `session/modelCatalog` | Model and reasoning level |
+| `session/page` / `session/follow` | Paginated history and the live journal stream |
+| `workspace/create` / `workspace/rename` / `workspace/delete` | Workspace management |
+| `workspace/archiveSession`/`workspace/follow` | Archive sessions; workspace baseline stream |
+| `directoryPicker/list`/`directoryPicker/createDirectory` | Directory browser for new workspaces |
+| `commands/execute` | Permission preset setup (the `/permission` command) |
+| `fileUploads/upload` | Attachment upload; the receipt is sent with the next message |
+| `workspaceFiles/list`/`workspaceFiles/readBytes` | Workspace file list and download |
+| `$events/result` | Approval and question answers |
+
+These are DSH-internal endpoints with no stability promise: if a DSH upgrade
+changes a signature, the plugin deactivates rather than allowing access (see
+Compatibility and Known limitations).
+
 ## Quality
 
 - **Types**: `types.d.ts` defines the protocol and data shapes; sources use
@@ -136,18 +196,6 @@ dsh-web-mobile-pmsfh/
   right after an upgrade
 - **No build chain**: the repository is the runtime artifact; no install or
   build step
-
-## Routes
-
-| Path | Content |
-| --- | --- |
-| `/dsh-web-mobile-pmsfh/` | Mobile page |
-| `/dsh-web-mobile-pmsfh/app.js` | Page script |
-| `/dsh-web-mobile-pmsfh/app.css` | Page styles |
-| `/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js` | Markdown rendering |
-| `/dsh-web-mobile-pmsfh/vendor/markdown-it-cjk-friendly.min.js` | `**` handling for CJK punctuation |
-
-The bare path redirects with a 302 to the trailing-slash form.
 
 ## Security
 
@@ -160,6 +208,22 @@ The bare path redirects with a 302 to the trailing-slash form.
 - Model output is rendered by markdown-it (`html: false`), and links are
   limited to `http/https/mailto`; HTML responses carry CSP, nosniff,
   no-referrer, and `X-Frame-Options: DENY`
+
+## Self-check & Troubleshooting
+
+- The plugin page bounces back to the DSH login page: not signed in or the
+  session expired — sign in on the main site first
+- The plugin page returns 503: DSH's login-check service is unavailable, the
+  plugin refuses to let the request through — restore DSH itself first
+- A phone opening the main site does not land on the mobile page: "Open desktop
+  version" was chosen in this browsing session (session-scoped, sessionStorage);
+  closing and reopening the page restores the default, and the floating "📱"
+  button on the desktop page returns to the mobile page
+- The session list loads but the model list is unavailable: the DSH backend
+  model service is failing — check DSH's own logs
+- After a DSH upgrade the plugin page fails or misbehaves: an internal endpoint
+  signature may have changed; check Compatibility for the adapted version and
+  wait for the plugin to catch up
 
 ## Known limitations
 
@@ -206,6 +270,19 @@ unaffected:
 ```bash
 DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
 ```
+
+- No build chain: the repository is the runtime artifact; changes land after a
+  dsh-web restart (page files are read from disk per request)
+- Syntax check with `node --check`, type check with `tsc --noEmit`
+  (`@ts-check` applies per file)
+- Debug hooks: the page exposes `__dshwm.dispatch()`, which injects synthetic
+  mux frames to rehearse approval and question cards; `__frames` records the
+  sequence of received frame types
+- Soft-keyboard fit: `#app` is pinned to the visualViewport height (the
+  `interactive-widget` meta is the fallback) so the composer rides above the
+  keyboard
+- The dictionaries live in the `T` object at the top of `mobile/app.js` —
+  Chinese and English key sets side by side; update both when changing UI copy
 
 Implementation notes: static assets get content-hash ETags and return 304 on
 repeat visits; bundled dependencies are cached for 30 days.

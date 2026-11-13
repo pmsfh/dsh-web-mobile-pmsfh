@@ -57,11 +57,11 @@
     permFail: '权限设置失败，将使用默认权限',
     createFail: '创建失败',
     wsListFail: '工作区列表加载失败，可新建工作区或稍后重试',
-    faTitle: '确认启用 Full access？',
-    faDesc: '启用 Full access 后，新会话将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任后续任务时使用。',
+    faTitle: '确认启用完全权限？',
+    faDesc: '启用完全权限后，新会话将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任后续任务时使用。',
     faAck: '我已了解风险，并愿意继续',
     faCancel: '取消',
-    faEnable: '启用 Full access',
+    faEnable: '启用完全权限',
     untitled: '新会话',
     loading: '加载中…',
     empty: '还没有会话\n点右上角「＋」开始',
@@ -1018,8 +1018,14 @@
   ]
 
   function permLabel(/** @type {any} */ value) {
-    // Same product labels as the official UI: title-cased names, but the
-    // dangerous preset is always marketed as "Full access".
+    // Same product labels as the official UI in both languages; the wire
+    // values (read-only / workspace-write / danger-full-access) never change.
+    if (zh) {
+      if (value === 'danger-full-access') return '完全权限'
+      if (value === 'read-only') return '仅可查看'
+      if (value === 'workspace-write') return '工作区内修改'
+      return String(value)
+    }
     if (value === 'danger-full-access') return 'Full access'
     return value.split('-').map(function (/** @type {any} */ w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join(' ')
   }

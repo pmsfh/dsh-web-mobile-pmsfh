@@ -22,7 +22,8 @@ official code.
   delete workspaces — deleting only removes a workspace from the list, keeping
   the directory and session records, and its sessions move to "Ungrouped";
   long-press a session to archive it, and pick a permission level when creating
-  one (read-only / workspace write / Full access, with a risk confirmation)
+  one (Read Only / Workspace Write / Full access; only Full access requires a
+  risk confirmation)
 - **Conversations**: streaming output, collapsible reasoning, a notice when
   context is compacted; markdown and code block rendering, stop while
   generating, queued messages stay visible, scroll up for earlier messages,
@@ -68,8 +69,8 @@ dsh plugin --profile web add dsh-web-mobile-pmsfh
 
 ### Option 2: Install from source
 
-For your own modifications; keep the cloned directory, since updates pull inside
-it:
+For your own modifications; keep the cloned directory, since updates are pulled
+inside it:
 
 ```bash
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
@@ -83,8 +84,10 @@ open Settings → Plugins in the client.
 If your npm points at a regional mirror and cannot find the package, append
 `--registry=https://registry.npmjs.org`.
 
+Restart command example:
+
 ```bash
-sudo systemctl restart dsh-web   # restart the DSH service
+sudo systemctl restart dsh-web
 ```
 
 First visit: opening the main site on a mobile device redirects automatically,
@@ -97,7 +100,7 @@ the page is closed and reopened.
 
 | DSH | Status |
 | --- | --- |
-| `0.2.2-rc.1` | Supported, running in production |
+| `0.2.2-rc.1` | Supported |
 | other `0.2.x` | Untested; endpoint signatures may differ |
 
 ## Tech Stack

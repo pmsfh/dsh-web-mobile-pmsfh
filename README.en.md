@@ -39,9 +39,9 @@ official code.
 - **Interface**: Chinese and English follow the browser, light and dark follow
   the system; the composer rides above the soft keyboard; "Open desktop
   version" at the bottom of the list applies to this browsing session only,
-  and a floating "📱" button on the desktop page returns to the mobile page;
-  uses the existing DSH login state with guidance when it expires and a
-  sign-out action
+  and a floating "📱" button appears in the corner after switching to return to
+  the mobile page; uses the existing DSH login state with guidance when it
+  expires and a sign-out action
 
 ## Quick Start
 
@@ -150,11 +150,11 @@ The mobile page talks to DSH exclusively through DSH's own wire protocol
   streams, workspace baselines, the event bus)
 - `POST /api/$events/result`: approval and question answers
 
-Five static routes in total:
+Five resource routes, plus a bare-path 302 redirect:
 
 | Path | Content |
 | --- | --- |
-| `/dsh-web-mobile-pmsfh/` | Mobile page (the bare path 302-redirects to the trailing-slash form) |
+| `/dsh-web-mobile-pmsfh/` | Mobile page |
 | `/dsh-web-mobile-pmsfh/app.js` | Page script |
 | `/dsh-web-mobile-pmsfh/app.css` | Page styles |
 | `/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js` | Markdown rendering |
@@ -183,9 +183,10 @@ the rest are unary RPC):
 | `workspaceFiles/list`/`workspaceFiles/readBytes` | Workspace file list and download |
 | `$events/result` | Approval and question answers |
 
-These are DSH-internal endpoints with no stability promise: if a DSH upgrade
-changes a signature, the plugin deactivates rather than allowing access (see
-Compatibility and Known limitations).
+These are DSH-internal endpoints with no stability promise: when the check
+service is unavailable, the plugin returns 503 and does not let the request
+through; an endpoint signature change breaks the affected features until the
+plugin adapts (see Compatibility).
 
 ## Quality
 
@@ -217,8 +218,8 @@ Compatibility and Known limitations).
   plugin refuses to let the request through — restore DSH itself first
 - A phone opening the main site does not land on the mobile page: "Open desktop
   version" was chosen in this browsing session (session-scoped, sessionStorage);
-  closing and reopening the page restores the default, and the floating "📱"
-  button on the desktop page returns to the mobile page
+  closing and reopening the page restores the default, and a phone switched to
+  the desktop page shows a floating "📱" button to return
 - The session list loads but the model list is unavailable: the DSH backend
   model service is failing — check DSH's own logs
 - After a DSH upgrade the plugin page fails or misbehaves: an internal endpoint
@@ -231,8 +232,9 @@ Compatibility and Known limitations).
   not take top-level rows)
 - Attachments use the official conversation attachment channel and are not
   written to the workspace; workspace files are read-only
-- The plugin relies on DSH's internal session-check endpoint: if a DSH upgrade
-  changes it, the plugin deactivates rather than allowing access
+- The plugin consumes DSH-internal endpoints with no stability promise: an
+  endpoint signature change breaks the affected features until the plugin
+  adapts
 - Single-user use is recommended: DSH itself does not separate accounts, so a
   shared deployment needs isolation in front
 
@@ -278,9 +280,9 @@ DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
 - Debug hooks: the page exposes `__dshwm.dispatch()`, which injects synthetic
   mux frames to rehearse approval and question cards; `__frames` records the
   sequence of received frame types
-- Soft-keyboard fit: `#app` is pinned to the visualViewport height (the
-  `interactive-widget` meta is the fallback) so the composer rides above the
-  keyboard
+- Soft-keyboard fit: `#app` is pinned to the visualViewport height, with the
+  `interactive-widget=resizes-content` meta alongside, so the composer rides
+  above the keyboard
 - The dictionaries live in the `T` object at the top of `mobile/app.js` —
   Chinese and English key sets side by side; update both when changing UI copy
 

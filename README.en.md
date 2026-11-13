@@ -8,6 +8,7 @@ It serves a standalone mobile UI at `/dsh-web-mobile-pmsfh/`, calls DSH's own AP
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)
+[![npm](https://img.shields.io/npm/v/dsh-web-mobile-pmsfh.svg)](https://www.npmjs.com/package/dsh-web-mobile-pmsfh)
 [![dsh](https://img.shields.io/badge/dsh-0.2.2--rc.1-5B6EF5)](https://github.com/deepseek-ai/deepseek-harness)
 
 ## Features
@@ -34,7 +35,15 @@ or
 npm i -g pnpm
 ```
 
-Once pnpm is available, install the plugin:
+Once pnpm is available, install the plugin one of two ways.
+
+From npm, so new versions show up as update prompts:
+
+```sh
+dsh plugin --profile web add dsh-web-mobile-pmsfh
+```
+
+Or from source, in which case keep the cloned directory:
 
 ```sh
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
@@ -43,7 +52,7 @@ dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 
 The `dsh plugin` command above installs the plugin for the server started by `dsh web`. The DSH desktop client manages its own plugins; to use it there too, open Settings → Plugins in the client.
 
-The install is a link, so keep the cloned directory.
+If your npm points at a regional mirror and cannot find the package, append `--registry=https://registry.npmjs.org`.
 
 Then restart DSH however your deployment runs it:
 
@@ -115,7 +124,14 @@ The bare path redirects with a 302 to the trailing-slash form.
 
 ## Update
 
-Pull the latest code in the cloned directory and restart:
+Installed from npm: install the new version and restart.
+
+```sh
+dsh plugin --profile web add dsh-web-mobile-pmsfh@latest
+sudo systemctl restart dsh-web
+```
+
+Installed from source: pull the latest code in the cloned directory and restart.
 
 ```sh
 git pull

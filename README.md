@@ -8,6 +8,7 @@ DeepSeek Harness 的移动端页面插件：移动设备打开主站自动进入
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)
+[![npm](https://img.shields.io/npm/v/dsh-web-mobile-pmsfh.svg)](https://www.npmjs.com/package/dsh-web-mobile-pmsfh)
 [![dsh](https://img.shields.io/badge/dsh-0.2.2--rc.1-5B6EF5)](https://github.com/deepseek-ai/deepseek-harness)
 
 ## 功能概览
@@ -34,7 +35,15 @@ corepack enable
 npm i -g pnpm
 ```
 
-装好 pnpm 后，安装插件：
+装好 pnpm 后，安装插件，下面两种方式选一种
+
+从 npm 安装，之后能收到版本更新提示
+
+```sh
+dsh plugin --profile web add dsh-web-mobile-pmsfh
+```
+
+或从源码安装，克隆目录要保留
 
 ```sh
 git clone https://github.com/renlang119/dsh-web-mobile-pmsfh.git
@@ -43,7 +52,7 @@ dsh plugin --profile web add ./dsh-web-mobile-pmsfh
 
 上面的 `dsh plugin` 命令是给 `dsh web` 启动的服务端安装插件；DSH 桌面客户端自己管理插件，如果也要在桌面端使用，在客户端的设置 → 插件页里安装
 
-安装为 link 方式，克隆目录要保留
+如果本机 npm 指向国内镜像、装不到这个包，在命令后面加 `--registry=https://registry.npmjs.org`
 
 然后重启 DSH 服务，按你的部署方式来
 
@@ -115,7 +124,14 @@ dsh-web-mobile-pmsfh/
 
 ## 更新
 
-在克隆目录拉取最新代码后重启：
+从 npm 安装的，装新版本后重启
+
+```sh
+dsh plugin --profile web add dsh-web-mobile-pmsfh@latest
+sudo systemctl restart dsh-web
+```
+
+从源码安装的，在克隆目录拉取最新代码后重启
 
 ```sh
 git pull

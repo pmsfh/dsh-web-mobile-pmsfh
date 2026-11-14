@@ -157,11 +157,11 @@ dsh-web-mobile-pmsfh/
 | `session/selectModel` / `session/modelCatalog` | 模型与推理等级选择 |
 | `session/page` / `session/follow` | 历史分页与实时日志流 |
 | `workspace/create` / `workspace/rename` / `workspace/delete` | 工作区管理 |
-| `workspace/archiveSession`/`workspace/follow` | 会话归档与工作区基线流 |
-| `directoryPicker/list`/`directoryPicker/createDirectory` | 新建工作区的内联目录浏览器 |
+| `workspace/archiveSession` / `workspace/follow` | 会话归档与工作区基线流 |
+| `directoryPicker/list` / `directoryPicker/createDirectory` | 新建工作区的内联目录浏览器 |
 | `commands/execute` | 权限档位设置（`/permission` 命令） |
 | `fileUploads/upload` | 附件上传，返回凭证随下一条消息发送 |
-| `workspaceFiles/list`/`workspaceFiles/readBytes` | 工作区文件列表与下载 |
+| `workspaceFiles/list` / `workspaceFiles/readBytes` | 工作区文件列表与下载 |
 | `$events/result` | 审批与问答应答 |
 
 这些是 DSH 内部接口，没有稳定承诺：校验服务不可用时返回 503，不放行；

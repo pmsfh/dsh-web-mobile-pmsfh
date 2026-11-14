@@ -176,11 +176,11 @@ the rest are unary RPC):
 | `session/selectModel` / `session/modelCatalog` | Model and reasoning level |
 | `session/page` / `session/follow` | Paginated history and the live journal stream |
 | `workspace/create` / `workspace/rename` / `workspace/delete` | Workspace management |
-| `workspace/archiveSession`/`workspace/follow` | Archive sessions; workspace baseline stream |
-| `directoryPicker/list`/`directoryPicker/createDirectory` | Directory browser for new workspaces |
+| `workspace/archiveSession` / `workspace/follow` | Archive sessions; workspace baseline stream |
+| `directoryPicker/list` / `directoryPicker/createDirectory` | Directory browser for new workspaces |
 | `commands/execute` | Permission preset setup (the `/permission` command) |
 | `fileUploads/upload` | Attachment upload; the receipt is sent with the next message |
-| `workspaceFiles/list`/`workspaceFiles/readBytes` | Workspace file list and download |
+| `workspaceFiles/list` / `workspaceFiles/readBytes` | Workspace file list and download |
 | `$events/result` | Approval and question answers |
 
 These are DSH-internal endpoints with no stability promise: when the check

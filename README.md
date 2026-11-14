@@ -153,7 +153,7 @@ dsh-web-mobile-pmsfh/
 
 | 接口 | 用途 |
 | --- | --- |
-| `session/list`/`session/create`/`session/prompt`/`session/cancel` | 会话列表、创建、发消息、停止 |
+| `session/list`/`session/create`/`session/prompt`/`session/cancel` | 列表、创建、发消息、停止 |
 | `session/selectModel` / `session/modelCatalog` | 模型与推理等级选择 |
 | `session/page` / `session/follow` | 历史分页与实时日志流 |
 | `workspace/create` / `workspace/rename` / `workspace/delete` | 工作区管理 |

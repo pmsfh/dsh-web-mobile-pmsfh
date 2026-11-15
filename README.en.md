@@ -228,6 +228,16 @@ plugin adapts (see Compatibility).
 
 ## Known limitations
 
+- The plugin provides no network connectivity of its own: it does no port
+  forwarding, NAT traversal, or traffic relay. The mobile page is served under
+  the same address as DSH and listens on no separate port, so its reachability
+  matches the DSH site. If DSH is reachable from the public internet, a mobile
+  device on any network can open the same address; if it runs only on a private
+  network, the device must join that network; if it runs only on the local
+  machine, it is reachable only from that machine. When DSH is deployed locally
+  or you use the desktop client, a desktop browser will not enter the mobile
+  page by default; to test that page, enable device emulation or use a mobile
+  emulator.
 - Subagent sessions are not listed (matching the desktop client: subagents do
   not take top-level rows)
 - Attachments use the official conversation attachment channel and are not

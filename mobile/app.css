@@ -235,6 +235,9 @@ html, body {
   flex-direction: column;
   gap: 10px;
 }
+/* 长会话里卡片和消息不能被压缩：tcard 有 overflow:hidden，
+   默认 flex-shrink 会把它们压成只剩 1px 边框的横线（2026-11-18 真机）。 */
+.chat > * { flex: none; }
 .msg {
   max-width: 88%;
   padding: 9px 12px;

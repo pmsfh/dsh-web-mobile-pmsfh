@@ -351,7 +351,7 @@
   var muxRetry = 0
   var muxOpen = false
   var muxEverOpen = false
-  /** @type {'wait' | 'on' | 'err'} 连接灯状态：连接中 / 已连接 / 连不上 */
+  /** @type {'wait' | 'on' | 'bad'} 连接灯状态：连接中 / 已连接 / 连不上 */
   var connState = 'wait'
   var muxFails = 0          // 本次断开后累计的失败次数（onopen 清零）
   var downSince = 0         // 本次断开起始时刻（ms），onopen 清零
@@ -369,13 +369,13 @@
   /** @type {string | null} 当前聊天会话的 session/follow streamId */
   var followStreamId = null      // 当前聊天会话的 session/follow streamId
 
-  /** @param {'wait' | 'on' | 'err'} state */
+  /** @param {'wait' | 'on' | 'bad'} state */
   function setConn(state) {
     connState = state
     muxOpen = state === 'on'
     if (!connEl) return
-    connEl.className = 'conn' + (state === 'on' ? ' on' : state === 'err' ? ' err' : ' wait')
-    var label = state === 'on' ? T.connOn : state === 'err' ? T.connErr : T.connWait
+    connEl.className = 'conn' + (state === 'on' ? ' on' : state === 'bad' ? ' bad' : ' wait')
+    var label = state === 'on' ? T.connOn : state === 'bad' ? T.connErr : T.connWait
     connEl.setAttribute('aria-label', label)
     connEl.title = label
   }
@@ -384,7 +384,7 @@
   }
   // 断开满 10 秒且至少两次重试失败，或浏览器明确离线 → 红灯；否则黄灯。
   function downState() {
-    return (!navigator.onLine || (muxFails >= 2 && Date.now() - downSince >= 10000)) ? 'err' : 'wait'
+    return (!navigator.onLine || (muxFails >= 2 && Date.now() - downSince >= 10000)) ? 'bad' : 'wait'
   }
   function onMuxDown() {
     if (!downSince) downSince = Date.now()
@@ -486,7 +486,7 @@
   }
   window.addEventListener('offline', function () {
     clearDownTimer()
-    setConn('err')
+    setConn('bad')
   })
   window.addEventListener('online', function () {
     if (muxOpen) return

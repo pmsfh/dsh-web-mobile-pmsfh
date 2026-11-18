@@ -13,6 +13,7 @@
   --accent-weak: rgba(37, 99, 235, 0.1);
   --danger: #dc2626;
   --ok: #16a34a;
+  --warn: #d97706;
   --bubble-user: #2563eb;
   --bubble-user-text: #ffffff;
   --header-h: calc(52px + env(safe-area-inset-top, 0px));
@@ -28,6 +29,9 @@
     --border: rgba(255, 255, 255, 0.1);
     --accent: #5b8def;
     --accent-weak: rgba(91, 141, 239, 0.18);
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --danger: #f87171;
     --bubble-user: #2f5cb8;
     --bubble-user-text: #ffffff;
   }
@@ -97,6 +101,15 @@ html, body {
   background: var(--text3);
 }
 .conn.on { background: var(--ok); }
+.conn.wait { background: var(--warn); animation: conn-pulse 1.2s ease-in-out infinite; }
+.conn.err { background: var(--danger); }
+@keyframes conn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .conn.wait { animation: none; }
+}
 
 /* ── session list ───────────────────────────────────────────── */
 .list {

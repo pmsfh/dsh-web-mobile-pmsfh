@@ -68,6 +68,9 @@
     chatEmpty: '发消息开始对话\n📎 可以传文件给智能体',
     loadFail: '加载失败，点右上角刷新重试',
     desktop: '进入桌面版',
+    connOn: '已连接',
+    connWait: '正在连接',
+    connErr: '连接断开',
     jumpDown: '回到底部',
     justNow: '刚刚',
     minutesAgo: ' 分钟前',
@@ -160,6 +163,9 @@
     chatEmpty: 'Send a message to start\n📎 attaches a file for the agent',
     loadFail: 'Load failed — tap refresh to retry',
     desktop: 'Open desktop version',
+    connOn: 'Connected',
+    connWait: 'Connecting',
+    connErr: 'Disconnected',
     jumpDown: 'Back to bottom',
     justNow: 'just now',
     minutesAgo: 'm ago',
@@ -345,6 +351,14 @@
   var muxRetry = 0
   var muxOpen = false
   var muxEverOpen = false
+  /** @type {'wait' | 'on' | 'err'} 连接灯状态：连接中 / 已连接 / 连不上 */
+  var connState = 'wait'
+  var muxFails = 0          // 本次断开后累计的失败次数（onopen 清零）
+  var downSince = 0         // 本次断开起始时刻（ms），onopen 清零
+  /** @type {any} 下一次重连的定时器 */
+  var muxTimer = null
+  /** @type {any} 断开满 10 秒时重新判定的定时器 */
+  var downTimer = null
   /** @type {WebSocket | null} */
   var muxWs = null
   /** @type {any} connection status dot element */
@@ -355,10 +369,32 @@
   /** @type {string | null} 当前聊天会话的 session/follow streamId */
   var followStreamId = null      // 当前聊天会话的 session/follow streamId
 
-  /** @param {boolean} on */
-  function setConn(on) {
-    muxOpen = !!on
-    if (connEl) connEl.classList.toggle('on', muxOpen)
+  /** @param {'wait' | 'on' | 'err'} state */
+  function setConn(state) {
+    connState = state
+    muxOpen = state === 'on'
+    if (!connEl) return
+    connEl.className = 'conn' + (state === 'on' ? ' on' : state === 'err' ? ' err' : ' wait')
+    var label = state === 'on' ? T.connOn : state === 'err' ? T.connErr : T.connWait
+    connEl.setAttribute('aria-label', label)
+    connEl.title = label
+  }
+  function clearDownTimer() {
+    if (downTimer) { clearTimeout(downTimer); downTimer = null }
+  }
+  // 断开满 10 秒且至少两次重试失败，或浏览器明确离线 → 红灯；否则黄灯。
+  function downState() {
+    return (!navigator.onLine || (muxFails >= 2 && Date.now() - downSince >= 10000)) ? 'err' : 'wait'
+  }
+  function onMuxDown() {
+    if (!downSince) downSince = Date.now()
+    muxFails++
+    setConn(downState())
+    // 失败次数先到、时间未到：到 10 秒时再判一次，避免红灯迟迟不亮。
+    clearDownTimer()
+    downTimer = setTimeout(function () {
+      if (!muxOpen) setConn(downState())
+    }, Math.max(0, 10000 - (Date.now() - downSince)))
   }
 
   /** @param {Record<string, unknown>} obj frame to send on the mux socket, if open */
@@ -386,17 +422,23 @@
   }
 
   function connectMux() {
+    if (muxTimer) { clearTimeout(muxTimer); muxTimer = null }
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
     /** @type {WebSocket} */
     var ws
     try {
       ws = new WebSocket(proto + '//' + location.host + '/api/remote.mux')
-    } catch (e) { scheduleMux(); return }
+    } catch (e) { onMuxDown(); scheduleMux(); return }
     muxWs = ws
+    if (connState !== 'on') setConn('wait')
     ws.onopen = function () {
+      if (ws !== muxWs) return // 旧 socket 的迟到事件
       var wasDown = muxEverOpen && !muxOpen
       muxRetry = 0
-      setConn(true)
+      muxFails = 0
+      downSince = 0
+      clearDownTimer()
+      setConn('on')
       muxEverOpen = true
       openStream(STREAM_EVENTS, '$events', {})
       openStream(STREAM_WS, 'workspace/follow', {})
@@ -405,6 +447,7 @@
       else if (wasDown) scheduleRefresh(true)
     }
     ws.onmessage = function (ev) {
+      if (ws !== muxWs) return
       var f
       try { f = JSON.parse(ev.data) } catch (e) { return }
       if (!f || !f.streamId) return
@@ -420,13 +463,40 @@
       if (f.streamId === STREAM_WS) return onWorkspaceFrame(f.value)
       if (followStreamId && f.streamId === followStreamId) return onFollowFrame(f.value)
     }
-    ws.onclose = function () { setConn(false); followStreamId = null; eventsClientId = null; checkAuth(); scheduleMux() }
+    ws.onclose = function () {
+      if (ws !== muxWs) return
+      onMuxDown()
+      followStreamId = null
+      eventsClientId = null
+      checkAuth()
+      scheduleMux()
+    }
     ws.onerror = function () { try { ws.close() } catch (e) {} }
   }
   function scheduleMux() {
+    if (muxTimer) return // 同一时间只排一个重连
     var d = Math.min(15000, 800 * Math.pow(1.6, muxRetry++))
-    setTimeout(connectMux, d)
+    muxTimer = setTimeout(connectMux, d)
   }
+  function reconnectMux() {
+    if (muxTimer) { clearTimeout(muxTimer); muxTimer = null }
+    var old = muxWs
+    connectMux() // 新 socket 成为 muxWs，旧 socket 的迟到事件按身份判断忽略
+    if (old && old !== muxWs) { try { old.close() } catch (e) {} }
+  }
+  window.addEventListener('offline', function () {
+    clearDownTimer()
+    setConn('err')
+  })
+  window.addEventListener('online', function () {
+    if (muxOpen) return
+    muxRetry = 0
+    muxFails = 0
+    downSince = 0
+    clearDownTimer()
+    setConn('wait')
+    reconnectMux()
+  })
 
   // ── $events 全局总线帧 ──────────────────────────────────────
   /** @param {any} v */
@@ -600,7 +670,8 @@
     }
     hd.appendChild(el('h1', null, title))
     connEl = el('span', 'conn')
-    if (muxOpen) connEl.classList.add('on')
+    connEl.setAttribute('role', 'status')
+    setConn(connState)
     hd.appendChild(connEl)
     if (opts.refresh) {
       var rf = el('button', null)

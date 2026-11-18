@@ -101,10 +101,15 @@ html, body {
 /* ── session list ───────────────────────────────────────────── */
 .list {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 8px 12px calc(24px + env(safe-area-inset-bottom, 0px));
 }
+/* Keep rows at their natural height inside the flex column, otherwise a
+   list taller than the viewport would be squeezed instead of scrolled. */
+.list > * { flex: none; }
 .ws-group { margin-top: 14px; }
 .ws-group.folded .srow { display: none; }
 .ws-head {
@@ -759,6 +764,10 @@ details.reasoning[open] summary::before { content: '▾ '; }
 .desktop-link {
   display: block;
   padding: 18px 0 8px;
+  /* Short list: the auto margin absorbs the leftover height and pins the
+     link to the bottom of the screen. Long list: no free space is left, the
+     margin computes to 0 and the link stays right under the last row. */
+  margin-top: auto;
   text-align: center;
   color: var(--text3);
   font-size: 12px;

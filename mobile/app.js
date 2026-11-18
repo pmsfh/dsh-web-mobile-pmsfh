@@ -872,7 +872,7 @@
 
     if (rows.length === 0 && state.workspaces.length === 0) {
       var em = el('div', 'empty')
-      em.appendChild(el('div', 'big', '🏕'))
+      em.appendChild(el('div', 'big', '💬'))
       em.appendChild(el('div', null, T.empty))
       list.appendChild(em)
     } else {

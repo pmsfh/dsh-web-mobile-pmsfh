@@ -209,13 +209,18 @@ html, body {
 .srow .go { flex: none; color: var(--text3); font-size: 18px; }
 
 .empty {
-  padding: 60px 24px;
+  padding: 56px 24px;
   text-align: center;
   color: var(--text3);
-  font-size: 14px;
-  line-height: 2;
+  font-size: 16px;
+  line-height: 1.9;
+  white-space: pre-line;
 }
-.empty .big { font-size: 40px; }
+.empty .big {
+  font-size: 40px;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
 
 /* ── chat view (phase 2: markdown + tool cards + streaming) ── */
 .chat {

@@ -855,6 +855,13 @@
     return { wasFired: function () { return fired } }
   }
 
+  // 列表和弹层的长按菜单由应用自己提供；屏蔽浏览器原生菜单，
+  // 否则安卓 Chrome 的原生菜单会盖在归档面板上面（2026-11-18 实测）。
+  document.addEventListener('contextmenu', function (/** @type {any} */ ev) {
+    var t = ev.target
+    if (t && t.closest && t.closest('.list, .mask, .sheet, .hd')) ev.preventDefault()
+  })
+
   function renderList() {
     /** @type {any} */
     var app = document.getElementById('app')

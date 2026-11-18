@@ -855,11 +855,12 @@
     return { wasFired: function () { return fired } }
   }
 
-  // 列表和弹层的长按菜单由应用自己提供；屏蔽浏览器原生菜单，
-  // 否则安卓 Chrome 的原生菜单会盖在归档面板上面（2026-11-18 实测）。
+  // 只在应用自己接管长按的地方屏蔽浏览器原生菜单：会话条目、工作区分组标题，
+  // 以及弹层打开时的遮罩（此时原生菜单会盖住归档面板）。列表空白处和页头不拦，
+  // 用户仍可用浏览器的分享、重新加载等菜单（2026-11-18 真机反馈）。
   document.addEventListener('contextmenu', function (/** @type {any} */ ev) {
     var t = ev.target
-    if (t && t.closest && t.closest('.list, .mask, .sheet, .hd')) ev.preventDefault()
+    if (t && t.closest && t.closest('.srow, .ws-head, .mask')) ev.preventDefault()
   })
 
   function renderList() {

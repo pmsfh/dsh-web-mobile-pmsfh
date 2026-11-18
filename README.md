@@ -10,7 +10,7 @@ DeepSeek Harness 的移动端页面插件：移动设备打开主站自动进入
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)
 [![npm](https://img.shields.io/npm/v/dsh-web-mobile-pmsfh.svg)](https://www.npmjs.com/package/dsh-web-mobile-pmsfh)
-[![dsh](https://img.shields.io/badge/dsh-0.2.2--rc.1-5B6EF5)](https://github.com/deepseek-ai/deepseek-harness)
+[![dsh](https://img.shields.io/badge/dsh-0.2.2-5B6EF5)](https://github.com/deepseek-ai/deepseek-harness)
 
 ## 功能概览
 
@@ -25,7 +25,7 @@ DeepSeek Harness 的移动端页面插件：移动设备打开主站自动进入
 
 ## 快速开始
 
-环境要求：DSH `0.2.2-rc.1`（见「兼容性」）、Node.js ≥ 24；`dsh plugin`
+环境要求：DSH `0.2.2` 系列（见「兼容性」）、Node.js ≥ 24；`dsh plugin`
 需要 pnpm，经 corepack 启用或全局安装：
 
 ```bash
@@ -75,12 +75,12 @@ sudo systemctl restart dsh-web
 
 | DSH | 状态 |
 | --- | --- |
-| `0.2.2-rc.1` | 已适配 |
-| 其他 `0.2.x` | 未验证，端点签名可能不同 |
+| `0.2.2` 系列（`0.2.2-rc.1` 至 `0.2.2`） | 已适配，`rc.1` / `rc.2` / `rc.3` 实测 |
+| `0.2.3` 及以后 | 不在声明范围，端点签名可能变动 |
 
 ## 技术栈
 
-Node.js 24 · DeepSeek Harness `0.2.2-rc.1` · Cordis 插件 · 原生 JavaScript
+Node.js 24 · DeepSeek Harness `0.2.2` · Cordis 插件 · 原生 JavaScript
 （无构建）· markdown-it
 
 移动页是单页原生 JS 应用，不加载官方前端、不走打包器；运行时没有额外依赖，

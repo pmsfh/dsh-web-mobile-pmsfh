@@ -14,7 +14,7 @@ official code.
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![topic](https://img.shields.io/badge/topic-dsh--plugin-amber)](https://github.com/topics/dsh-plugin)
 [![npm](https://img.shields.io/npm/v/dsh-web-mobile-pmsfh.svg)](https://www.npmjs.com/package/dsh-web-mobile-pmsfh)
-[![dsh](https://img.shields.io/badge/dsh-0.2.2--rc.1-5B6EF5)](https://github.com/deepseek-ai/deepseek-harness)
+[![dsh](https://img.shields.io/badge/dsh-0.2.2-5B6EF5)](https://github.com/deepseek-ai/deepseek-harness)
 
 ## Features
 
@@ -45,7 +45,7 @@ official code.
 
 ## Quick Start
 
-Requirements: DSH `0.2.2-rc.1` (see Compatibility), Node.js 24 or later, and
+Requirements: DSH `0.2.2` line (see Compatibility), Node.js 24 or later, and
 pnpm for the `dsh plugin` command — enable it through corepack or install it
 globally:
 
@@ -103,12 +103,12 @@ the page is closed and reopened.
 
 | DSH | Status |
 | --- | --- |
-| `0.2.2-rc.1` | Supported |
-| other `0.2.x` | Untested; endpoint signatures may differ |
+| `0.2.2` line (`0.2.2-rc.1` through `0.2.2`) | Supported; tested on `rc.1`, `rc.2`, `rc.3` |
+| `0.2.3` and later | Outside the declared range; endpoint signatures may change |
 
 ## Tech Stack
 
-Node.js 24 · DeepSeek Harness `0.2.2-rc.1` · Cordis plugin · vanilla
+Node.js 24 · DeepSeek Harness `0.2.2` · Cordis plugin · vanilla
 JavaScript (no build) · markdown-it
 
 The mobile page is a single-page vanilla JS app; it does not load the official

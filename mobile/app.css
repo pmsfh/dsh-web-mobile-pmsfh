@@ -205,7 +205,8 @@ html, body {
   border-radius: 50%;
   background: transparent;
 }
-.srow .dot.run { background: var(--ok); }
+/* 运行中：蓝色，和顶部连接灯（绿/黄/红）区分 */
+.srow .dot.run { background: var(--accent); }
 .srow .body { flex: 1; min-width: 0; }
 .srow .t {
   font-size: 15px;

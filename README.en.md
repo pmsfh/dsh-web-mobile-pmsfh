@@ -35,9 +35,9 @@ official code.
 - **Approvals**: out-of-scope operations raise an approval card with allow
   once, deny, later, or a custom command of your own
 - **Pending requests**: questions and approvals count in the header no matter
-  which page you are on; tap to open the conversation and answer, and "Later"
+  which page you are on; tap to open the conversation and handle it, and "Later"
   keeps the request available when you come back. After the page closes or the
-  connection drops, DSH re-delivers unanswered requests when the page opens
+  connection drops, DSH re-delivers unhandled requests when the page opens
   again
 - **Models**: switch model and reasoning level within a session
 - **Files**: list and download workspace files, read-only

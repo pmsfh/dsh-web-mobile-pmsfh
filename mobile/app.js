@@ -109,12 +109,12 @@
     answerSend: '提交',
     answerLater: '稍后',
     customHint: '其他（自己输入）',
-    pending: '待答',
-    pendingAria: '有请求等你回答',
-    pendingList: '待应答请求',
+    pending: '待处理',
+    pendingAria: '有请求等你处理',
+    pendingList: '待你处理',
     pendingKindQuestion: '提问',
     pendingKindApproval: '审批',
-    pendingOpen: '点开对应会话作答',
+    pendingOpen: '点开对应会话处理',
     pendingSubmitFail: '提交失败，请重试',
     sendFail: '发送失败',
     sessionActions: '会话操作',
@@ -212,11 +212,11 @@
     answerLater: 'Later',
     customHint: 'Other (type your own)',
     pending: 'Pending',
-    pendingAria: 'Requests waiting for your answer',
+    pendingAria: 'Requests waiting for you',
     pendingList: 'Waiting for you',
     pendingKindQuestion: 'Question',
     pendingKindApproval: 'Approval',
-    pendingOpen: 'Open the conversation to answer',
+    pendingOpen: 'Open the conversation to handle it',
     pendingSubmitFail: 'Submit failed, please retry',
     sendFail: 'Send failed',
     sessionActions: 'Session actions',
@@ -379,7 +379,7 @@
   var connEl = null
   /** @type {string | null} $events ready 帧给的 clientId（waterfall 应答用） */
   var eventsClientId = null      // $events ready 帧给的 clientId（waterfall 应答用）
-  var pendingClearOnReady = false // 重连后旧的 eventId 失效，ready 到达时清空待答表
+  var pendingClearOnReady = false // 重连后旧的 eventId 失效，ready 到达时清空待处理表
   var STREAM_EVENTS = 'ev'       // $events 的 streamId
   /** @type {string | null} 当前聊天会话的 session/follow streamId */
   var followStreamId = null      // 当前聊天会话的 session/follow streamId
@@ -2314,7 +2314,7 @@
 
   // ── approvals / questions（rc.1：$events waterfall）──────────
   // waterfall 帧是 per-connection 的：帧到的时候用户不在那个会话，旧逻辑直接
-  // return，服务端就一直等。现在一律先进全局待答表（key = eventId），顶栏显示
+  // return，服务端就一直等。现在一律先进全局待处理表（key = eventId），顶栏显示
   // 计数，点开对应会话再弹框；「稍后」只关面板，条目留到应答或 cancel。
   function answerWaterfall(/** @type {any} */ meta, /** @type {any} */ value) {
     return rpc('$events/result', {
@@ -2544,7 +2544,7 @@
     }
     var acts = el('div', 'sheet-actions')
     var later = el('button', 'btn-ghost', T.answerLater)
-    later.addEventListener('click', closeAnswer) // 条目留在待答表，顶栏计数仍可见
+    later.addEventListener('click', closeAnswer) // 条目留在待处理表，顶栏计数仍可见
     var ok = el('button', 'btn-primary', T.answerSend)
     ok.addEventListener('click', function () {
       var answers = []

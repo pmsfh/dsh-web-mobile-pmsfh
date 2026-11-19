@@ -91,6 +91,18 @@ html, body {
 }
 .hd button:active { background: var(--border); }
 .hd .back { font-size: 20px; padding: 0 6px; }
+/* 待应答计数：有提问/审批没答时出现，点开跳到对应会话 */
+.hd .pending {
+  min-width: auto;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 14px;
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.hd .pending[hidden] { display: none; }
 
 /* connection dot */
 .conn {

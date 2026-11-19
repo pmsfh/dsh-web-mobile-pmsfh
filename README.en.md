@@ -34,6 +34,11 @@ official code.
   8 MB per file, removable before sending, not written to the workspace
 - **Approvals**: out-of-scope operations raise an approval card with allow
   once, deny, later, or a custom command of your own
+- **Pending requests**: questions and approvals count in the header no matter
+  which page you are on; tap to open the conversation and answer, and "Later"
+  keeps the request available when you come back. After the page closes or the
+  connection drops, DSH re-delivers unanswered requests when the page opens
+  again
 - **Models**: switch model and reasoning level within a session
 - **Files**: list and download workspace files, read-only
 - **Interface**: Chinese and English follow the browser, light and dark follow
@@ -238,8 +243,10 @@ plugin adapts (see Compatibility).
   or you use the desktop client, a desktop browser will not enter the mobile
   page by default; to test that page, enable device emulation or use a mobile
   emulator.
-- Subagent sessions are not listed (matching the desktop client: subagents do
-  not take top-level rows)
+- Subagent sessions are not listed (matching the desktop sidebar)
+- Pending requests are re-delivered by DSH after the page closes or the
+  connection drops; reopening the page shows them again. A dsh-web restart
+  aborts that turn, so it must be started again
 - Attachments use the official conversation attachment channel and are not
   written to the workspace; workspace files are read-only
 - The plugin consumes DSH-internal endpoints with no stability promise: an
@@ -289,7 +296,8 @@ DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
   (`@ts-check` applies per file)
 - Debug hooks: the page exposes `__dshwm.dispatch()`, which injects synthetic
   mux frames to rehearse approval and question cards; `__frames` records the
-  sequence of received frame types
+  sequence of received frame types, and `__dshwm.pending()` returns the
+  pending requests
 - Soft-keyboard fit: `#app` is pinned to the visualViewport height, with the
   `interactive-widget=resizes-content` meta alongside, so the composer rides
   above the keyboard

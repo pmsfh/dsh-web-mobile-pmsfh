@@ -109,6 +109,13 @@
     answerSend: '提交',
     answerLater: '稍后',
     customHint: '其他（自己输入）',
+    pending: '待答',
+    pendingAria: '有请求等你回答',
+    pendingList: '待应答请求',
+    pendingKindQuestion: '提问',
+    pendingKindApproval: '审批',
+    pendingOpen: '点开对应会话作答',
+    pendingSubmitFail: '提交失败，请重试',
     sendFail: '发送失败',
     sessionActions: '会话操作',
     archive: '归档此会话',
@@ -204,6 +211,13 @@
     answerSend: 'Submit',
     answerLater: 'Later',
     customHint: 'Other (type your own)',
+    pending: 'Pending',
+    pendingAria: 'Requests waiting for your answer',
+    pendingList: 'Waiting for you',
+    pendingKindQuestion: 'Question',
+    pendingKindApproval: 'Approval',
+    pendingOpen: 'Open the conversation to answer',
+    pendingSubmitFail: 'Submit failed, please retry',
     sendFail: 'Send failed',
     sessionActions: 'Session actions',
     archive: 'Archive this session',
@@ -365,6 +379,7 @@
   var connEl = null
   /** @type {string | null} $events ready 帧给的 clientId（waterfall 应答用） */
   var eventsClientId = null      // $events ready 帧给的 clientId（waterfall 应答用）
+  var pendingClearOnReady = false // 重连后旧的 eventId 失效，ready 到达时清空待答表
   var STREAM_EVENTS = 'ev'       // $events 的 streamId
   /** @type {string | null} 当前聊天会话的 session/follow streamId */
   var followStreamId = null      // 当前聊天会话的 session/follow streamId
@@ -440,6 +455,7 @@
       clearDownTimer()
       setConn('on')
       muxEverOpen = true
+      pendingClearOnReady = wasDown
       openStream(STREAM_EVENTS, '$events', {})
       openStream(STREAM_WS, 'workspace/follow', {})
       // 重连语义：流重开 = 快照重基线（官方契约 reopen+refetch 的 rc.1 形态）
@@ -502,7 +518,11 @@
   /** @param {any} v */
   function onEventsFrame(v) {
     if (!v || typeof v.type !== 'string') return
-    if (v.type === 'ready') { eventsClientId = v.clientId; return }
+    if (v.type === 'ready') {
+      eventsClientId = v.clientId
+      if (pendingClearOnReady) { pendingClearOnReady = false; clearPendingBusy() }
+      return
+    }
     if (v.type === 'cancel') { dispatchBus('waterfall/cancel', v.eventId); return }
     if (v.type === 'waterfall') {
       // 审批/提问：应答走 $events/result（见 answerWaterfall）
@@ -673,6 +693,13 @@
     connEl.setAttribute('role', 'status')
     setConn(connState)
     hd.appendChild(connEl)
+    var pend = el('button', 'pending')
+    var pendN = pendingItems().length
+    pend.hidden = pendN === 0
+    pend.textContent = T.pending + (pendN ? ' ' + pendN : '')
+    pend.setAttribute('aria-label', T.pendingAria)
+    pend.addEventListener('click', openPendingSheet)
+    hd.appendChild(pend)
     if (opts.refresh) {
       var rf = el('button', null)
       rf.appendChild(refreshIcon())
@@ -693,6 +720,7 @@
       mn.addEventListener('click', openAccountSheet)
       hd.appendChild(mn)
     }
+    paintPendingBadge()
     return hd
   }
 
@@ -1783,6 +1811,8 @@
     }
     buildComposer(app, id)
     paintModelSeat()
+    paintPendingBadge()
+    maybeShowBusy()
   }
 
   function onFollowError(/** @type {any} */ err) {
@@ -2283,26 +2313,171 @@
   }
 
   // ── approvals / questions（rc.1：$events waterfall）──────────
-  // waterfall 帧经 dispatchBus 带 meta {clientId, eventId, agentId}；应答 =
-  // POST /api/$events/result {args:{clientId,eventId,outcome:{kind:'result',value}}}。
-  // 服务端取消（他端已答/超时）→ 'waterfall/cancel' 总线 → 关弹层。
+  // waterfall 帧是 per-connection 的：帧到的时候用户不在那个会话，旧逻辑直接
+  // return，服务端就一直等。现在一律先进全局待答表（key = eventId），顶栏显示
+  // 计数，点开对应会话再弹框；「稍后」只关面板，条目留到应答或 cancel。
   function answerWaterfall(/** @type {any} */ meta, /** @type {any} */ value) {
     return rpc('$events/result', {
       clientId: meta.clientId,
       eventId: meta.eventId,
       outcome: { kind: 'result', value: value },
-    }).catch(function (e) { console.error('[answer]', e) })
+    })
   }
 
   /** @type {any} */
   var answerEl = null // current approval/question modal
+  /** @type {string | null} */
+  var answerId = null // eventId the open modal belongs to
+  /** @type {Object.<string, any>} unanswered waterfall frames, key = eventId */
+  var pendingBusy = Object.create(null)
+  var pendingSeq = 0 // fallback eventId for synthetic probe frames
+
   function closeAnswer() {
-    if (answerEl) { answerEl.remove(); answerEl = null }
+    if (answerEl) { answerEl.remove(); answerEl = null; answerId = null }
   }
 
-  onMux('approval/request', function (req, meta) {
-    if (!chat || !meta || meta.agentId !== chat.id) return
-    req = req || {}
+  function pendingItems() {
+    var out = []
+    for (var k in pendingBusy) out.push(pendingBusy[k])
+    out.sort(function (a, b) { return a.at - b.at })
+    return out
+  }
+
+  /** agentId 通常就是 sessionId；列表里若有显式映射则按它归位。 */
+  /** @param {string} agentId @returns {string | null} */
+  function resolveSessionId(agentId) {
+    if (!agentId) return null
+    if (state.byId[agentId]) return agentId
+    for (var i = 0; i < state.sessions.length; i++) {
+      var s = state.sessions[i]
+      if (s && (s.sessionId === agentId || s.agentId === agentId)) return s.sessionId
+    }
+    return agentId
+  }
+
+  /** @param {string} sessionId @param {string} agentId @returns {string} */
+  function sessionTitleOf(sessionId, agentId) {
+    var id = sessionId || agentId
+    var s = id ? state.byId[id] : null
+    return state.titles[id] || (s ? sessionTitle(s) : (agentId || T.untitled))
+  }
+
+  function paintPendingBadge() {
+    var btns = document.querySelectorAll('.hd .pending')
+    var n = pendingItems().length
+    for (var i = 0; i < btns.length; i++) {
+      var b = /** @type {any} */ (btns[i])
+      b.hidden = n === 0
+      var label = T.pending + (n ? ' ' + n : '')
+      if (b.textContent !== label) b.textContent = label
+    }
+  }
+
+  function queueBusy(/** @type {string} */ kind, /** @type {any} */ req, /** @type {any} */ meta) {
+    if (!meta) return null
+    var eventId = meta.eventId || ('probe-' + (++pendingSeq))
+    var clientId = meta.clientId || 'probe-client'
+    var entry = pendingBusy[eventId]
+    if (!entry) {
+      entry = {
+        kind: kind, eventId: eventId, clientId: clientId,
+        agentId: meta.agentId, sessionId: resolveSessionId(meta.agentId),
+        request: req || {}, at: Date.now(),
+      }
+      pendingBusy[eventId] = entry
+    } else {
+      entry.request = req || entry.request
+      entry.sessionId = resolveSessionId(meta.agentId) || entry.sessionId
+    }
+    paintPendingBadge()
+    return entry
+  }
+
+  function dropBusy(/** @type {any} */ eventId) {
+    if (!eventId || !pendingBusy[eventId]) return
+    delete pendingBusy[eventId]
+    if (answerId === eventId) closeAnswer()
+    paintPendingBadge()
+  }
+
+  /** 重连后旧连接的 eventId 全部失效：清空实时队列。DSH 网关会把仍未答的
+   * 请求重新推给新连接（ready 之后），页面收到后会重新入队。 */
+  function clearPendingBusy() {
+    for (var k in pendingBusy) delete pendingBusy[k]
+    closeAnswer()
+    paintPendingBadge()
+  }
+
+  function submitBusy(/** @type {any} */ entry, /** @type {any} */ value) {
+    closeAnswer()
+    answerWaterfall(entry, value).then(function () {
+      dropBusy(entry.eventId)
+    }).catch(function (e) {
+      console.error('[answer]', e)
+      toast(T.pendingSubmitFail)
+    })
+  }
+
+  function currentChatId() {
+    return (state.view === 'chat' && chat && chat.id) ? chat.id : null
+  }
+
+  function maybeShowBusy() {
+    if (answerEl) return
+    var cur = currentChatId()
+    if (!cur) return
+    var items = pendingItems()
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].sessionId === cur || items[i].agentId === cur) { showBusy(items[i]); return }
+    }
+  }
+
+  function busyExcerpt(/** @type {any} */ item) {
+    var req = item.request || {}
+    if (item.kind === 'approval') return String(req.toolName || '')
+    var qs = req.questions || []
+    var q = qs[0] && qs[0].question ? String(qs[0].question) : ''
+    return q.length > 80 ? q.slice(0, 80) + '…' : q
+  }
+
+  function gotoBusy(/** @type {any} */ item) {
+    var target = item.sessionId || item.agentId
+    if (!target) return
+    if (currentChatId() === target) { maybeShowBusy(); return }
+    location.hash = '#/s/' + encodeURIComponent(target)
+  }
+
+  function openPendingSheet() {
+    var items = pendingItems()
+    if (!items.length) return
+    if (items.length === 1) { gotoBusy(items[0]); return }
+    closeAnswer()
+    var mask = el('div', 'mask')
+    var sheet = el('div', 'sheet')
+    sheet.appendChild(el('div', 'sheet-title', T.pendingList))
+    sheet.appendChild(el('div', 'sheet-body', T.pendingOpen))
+    for (var i = 0; i < items.length; i++) {
+      (function (item) {
+        var row = el('button', 'sheet-item')
+        row.appendChild(el('div', null, sessionTitleOf(item.sessionId, item.agentId)))
+        row.appendChild(el('div', 'ws-sub', (item.kind === 'approval' ? T.pendingKindApproval : T.pendingKindQuestion) + ' · ' + busyExcerpt(item)))
+        row.addEventListener('click', function () { closeAnswer(); gotoBusy(item) })
+        sheet.appendChild(row)
+      })(items[i])
+    }
+    mask.appendChild(sheet)
+    mask.addEventListener('click', function (/** @type {any} */ ev) { if (ev.target === mask) closeAnswer() })
+    document.body.appendChild(mask)
+    answerEl = mask
+  }
+
+  function showBusy(/** @type {any} */ entry) {
+    if (entry.kind === 'approval') showApproval(entry)
+    else showQuestion(entry)
+  }
+
+  function showApproval(/** @type {any} */ entry) {
+    var req = entry.request || {}
     closeAnswer()
     var mask = el('div', 'mask')
     var sheet = el('div', 'sheet')
@@ -2310,26 +2485,20 @@
     sheet.appendChild(el('div', 'sheet-body', esc(req.toolName) + (req.reason ? '\n' + esc(req.reason) : '')))
     var acts = el('div', 'sheet-actions')
     var deny = el('button', 'btn-ghost', T.deny)
-    deny.addEventListener('click', function () {
-      closeAnswer()
-      answerWaterfall(meta, 'rejected')
-    })
+    deny.addEventListener('click', function () { submitBusy(entry, 'rejected') })
     var allow = el('button', 'btn-primary', T.allow)
-    allow.addEventListener('click', function () {
-      closeAnswer()
-      answerWaterfall(meta, 'allowed-once')
-    })
+    allow.addEventListener('click', function () { submitBusy(entry, 'allowed-once') })
     acts.appendChild(deny); acts.appendChild(allow)
     sheet.appendChild(acts)
     mask.appendChild(sheet)
     document.body.appendChild(mask)
     answerEl = mask
-  })
+    answerId = entry.eventId
+  }
 
-  onMux('user-questions/request', function (req, meta) {
-    if (!chat || !meta || meta.agentId !== chat.id) return
+  function showQuestion(/** @type {any} */ entry) {
+    var qs = (entry.request && entry.request.questions) || []
     closeAnswer()
-    var qs = (req && req.questions) || []
     /** @type {Object.<string, any>} */
     var picks = {} // question id -> { selected: [], custom: '' }
     var mask = el('div', 'mask')
@@ -2375,7 +2544,7 @@
     }
     var acts = el('div', 'sheet-actions')
     var later = el('button', 'btn-ghost', T.answerLater)
-    later.addEventListener('click', closeAnswer) // stays pending; replays on reconnect
+    later.addEventListener('click', closeAnswer) // 条目留在待答表，顶栏计数仍可见
     var ok = el('button', 'btn-primary', T.answerSend)
     ok.addEventListener('click', function () {
       var answers = []
@@ -2387,17 +2556,31 @@
         if (p.custom && p.custom.trim()) item.custom = p.custom.trim()
         answers.push(item)
       }
-      closeAnswer()
-      answerWaterfall(meta, { answers: answers })
+      submitBusy(entry, { answers: answers })
     })
     acts.appendChild(later); acts.appendChild(ok)
     sheet.appendChild(acts)
     mask.appendChild(sheet)
     document.body.appendChild(mask)
     answerEl = mask
+    answerId = entry.eventId
+  }
+
+  onMux('approval/request', function (req, meta) {
+    if (!meta) return
+    var entry = queueBusy('approval', req, meta)
+    if (entry) maybeShowBusy()
   })
 
-  onMux('waterfall/cancel', function () { closeAnswer() })
+  onMux('user-questions/request', function (req, meta) {
+    if (!meta) return
+    var entry = queueBusy('question', req, meta)
+    if (entry) maybeShowBusy()
+  })
+
+  onMux('waterfall/cancel', function (eventId) {
+    dropBusy(eventId)
+  })
 
   // 注意：rc.1 队列深度暂无流式来源（旧 session/queue 事件退役）——
   // queue chip 保持隐藏，不显示错误数字（已知降级，见技能参考）
@@ -2427,6 +2610,7 @@
 
   // ── routing ─────────────────────────────────────────────────
   function route() {
+    closeAnswer()
     var h = location.hash || '#/'
     var m = h.match(/^#\/s\/(.+)$/)
     if (m) {
@@ -2446,10 +2630,12 @@
   // Used by the Playwright probes to exercise approval/question modals
   // (real gated tools are not guaranteed to ask in every deployment).
   window.__dshwm = {
-    dispatch: function (/** @type {any} */ type, /** @type {any} */ frame, /** @type {any} */ rpcIdValue) {
+    dispatch: function (/** @type {any} */ type, /** @type {any} */ frame, /** @type {any} */ meta) {
       var hs = muxHandlers[type] || []
-      for (var i = 0; i < hs.length; i++) hs[i](frame, rpcIdValue || 'debug-rpc')
+      if (typeof meta === 'string') meta = { clientId: meta, agentId: chat && chat.id }
+      for (var i = 0; i < hs.length; i++) hs[i](frame, meta || null)
     },
+    pending: function () { return pendingItems() },
   }
 
   // ── boot ────────────────────────────────────────────────────

@@ -108,7 +108,7 @@ the page is closed and reopened.
 
 | DSH | Status |
 | --- | --- |
-| `0.2.2` line (`0.2.2-rc.1` through `0.2.2`) | Supported; tested on `rc.1`, `rc.2`, `rc.3` |
+| `0.2.2` line (`0.2.2-rc.1` through `0.2.2`) | Supported; tested on `rc.1`, `rc.2`, `rc.3`, `rc.4` |
 | `0.2.3` and later | Outside the declared range; endpoint signatures may change |
 
 ## Tech Stack

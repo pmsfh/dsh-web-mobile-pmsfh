@@ -634,6 +634,25 @@
     wsReady: false, // workspace/follow baseline applied (archived ids known)
   }
 
+  // 多个运行中圆点共用同一个呼吸相位：每次渲染后把 animation-delay
+  // 按页面时间取负数，避免列表重建或新行出现时相位参差。时长与
+  // app.css 的 run-breathe 保持一致。
+  var RUN_PULSE_MS = 1800
+  var runPulseEpoch = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+
+  /** 让当前列表里所有运行中圆点落在同一个呼吸相位上。 */
+  function syncRunPulse() {
+    var dots = document.querySelectorAll('.srow .dot.run')
+    if (!dots.length) return
+    var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+    var phase = ((now - runPulseEpoch) % RUN_PULSE_MS) / 1000
+    for (var i = 0; i < dots.length; i++) {
+      /** @type {any} */
+      var dot = dots[i]
+      dot.style.animationDelay = '-' + phase.toFixed(3) + 's'
+    }
+  }
+
   /** @param {any} s @returns {string} */
   function sessionTitle(s) {
     var t = state.titles[s.sessionId]
@@ -1002,6 +1021,7 @@
     })
     list.appendChild(dl)
     app.appendChild(list)
+    syncRunPulse()
   }
 
   // ── session row sheet (long-press): archive ─────────────────

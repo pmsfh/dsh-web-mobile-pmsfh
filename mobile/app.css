@@ -205,8 +205,19 @@ html, body {
   border-radius: 50%;
   background: transparent;
 }
-/* 运行中：蓝色，和顶部连接灯（绿/黄/红）区分 */
-.srow .dot.run { background: var(--accent); }
+/* 运行中：蓝色呼吸，和顶部连接灯（绿/黄/红）区分 */
+.srow .dot.run {
+  background: var(--accent);
+  animation: run-breathe 1.8s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@keyframes run-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .srow .dot.run { animation: none; }
+}
 .srow .body { flex: 1; min-width: 0; }
 .srow .t {
   font-size: 15px;

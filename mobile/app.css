@@ -552,7 +552,9 @@ details.reasoning[open] summary::before { content: '▾ '; }
   line-height: 1.4;
   resize: none;
   outline: none;
+  scrollbar-width: none;
 }
+.c-input::-webkit-scrollbar { display: none; }
 .c-input:focus { border-color: var(--accent); }
 .c-send {
   flex: none;

@@ -1970,7 +1970,9 @@
     input.placeholder = T.placeholder
     input.addEventListener('input', function () {
       input.style.height = 'auto'
-      input.style.height = Math.min(input.scrollHeight, 120) + 'px'
+      // scrollHeight 不含边框，而 textarea 是 border-box：补回边框高度，
+      // 否则输入框天然比内容矮 2px，右侧会常驻一条滚动条。
+      input.style.height = Math.min(input.scrollHeight + input.offsetHeight - input.clientHeight, 120) + 'px'
       paintComposer()
     })
 

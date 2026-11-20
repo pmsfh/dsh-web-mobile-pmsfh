@@ -1893,6 +1893,7 @@
     var t = document.querySelector('.mtoast')
     if (!t) {
       t = el('div', 'mtoast')
+      t.setAttribute('role', 'status')
       document.body.appendChild(t)
     }
     t.textContent = text

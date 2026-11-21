@@ -50,8 +50,10 @@ window.__ModuleLoader__.load({
       fab.id = 'dsh-web-mobile-pmsfh-fab'
       fab.href = '/dsh-web-mobile-pmsfh/'
       fab.textContent = '📱'
-      fab.title = '移动版'
-      fab.setAttribute('aria-label', '移动版')
+      // 与移动页 app.js 同一判定：navigator.language 检测，避免读屏读出外文。
+      var mobZh = (navigator.language || 'zh').toLowerCase().indexOf('zh') === 0
+      fab.title = mobZh ? '移动版' : 'Mobile version'
+      fab.setAttribute('aria-label', fab.title)
       fab.style.cssText = 'position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));' +
         'z-index:2200;width:44px;height:44px;border-radius:22px;display:flex;align-items:center;' +
         'justify-content:center;background:#1a1a1a;color:#fff;font-size:20px;text-decoration:none;' +

@@ -41,9 +41,13 @@
 
   // ── i18n ────────────────────────────────────────────────────
   var zh = (navigator.language || 'zh').toLowerCase().indexOf('zh') === 0
+  // index.html 静态标记是 zh-CN 兜底；运行时随语言包对齐，让标签页标题与
+  // 读屏发音规则和界面语言一致。
+  document.documentElement.lang = zh ? 'zh-CN' : 'en'
   /** @type {Record<string, string>} */
   var T = zh ? {
     title: '会话',
+    docTitle: '会话 · 移动版',
     newSession: '新建会话',
     wsSection: '工作区',
     ungrouped: '未分组',
@@ -78,6 +82,8 @@
     daysAgo: ' 天前',
     today: '今天',
     yesterday: '昨天',
+    back: '返回',
+    refresh: '刷新',
     running: '运行中',
     historyFail: '历史加载失败',
     loadOlder: '加载更早的消息',
@@ -149,6 +155,7 @@
     cancel: '取消',
   } : {
     title: 'Sessions',
+    docTitle: 'Sessions · Mobile',
     newSession: 'New session',
     wsSection: 'Workspace',
     ungrouped: 'Ungrouped',
@@ -183,6 +190,8 @@
     daysAgo: 'd ago',
     today: 'Today',
     yesterday: 'Yesterday',
+    back: 'Back',
+    refresh: 'Refresh',
     running: 'running',
     historyFail: 'Failed to load history',
     loadOlder: 'Load older messages',
@@ -748,7 +757,7 @@
     var hd = el('div', 'hd')
     if (opts.back) {
       var back = el('button', 'back', '‹')
-      back.setAttribute('aria-label', 'back')
+      back.setAttribute('aria-label', T.back)
       back.addEventListener('click', function () { location.hash = '#/' })
       hd.appendChild(back)
     }
@@ -767,7 +776,7 @@
     if (opts.refresh) {
       var rf = el('button', null)
       rf.appendChild(refreshIcon())
-      rf.setAttribute('aria-label', 'refresh')
+      rf.setAttribute('aria-label', T.refresh)
       rf.addEventListener('click', loadList)
       hd.appendChild(rf)
     }
@@ -2790,6 +2799,9 @@
   window.addEventListener('resize', fitViewport)
   fitViewport()
 
+  // 标签页标题与界面语言对齐（index.html 里的中文 title 是首帧兜底）。
+  // 「移动版」后缀用于区分桌面 DSH 标签页；H1 用 T.title 不带后缀。
+  document.title = T.docTitle
   connectMux()
   route()
 })()

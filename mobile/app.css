@@ -594,11 +594,12 @@ details.reasoning[open] summary::before { content: '▾ '; }
   padding: 4px 4px 0;
 }
 .c-model {
-  border: 0;
-  background: transparent;
-  color: var(--text3);
-  font-size: 12px;
-  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text2);
+  font-size: 13px;
+  padding: 5px 12px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }

@@ -105,6 +105,7 @@
     noCwd: '该会话没有工作区',
     modelLoading: '模型加载中…',
     modelFail: '模型列表不可用',
+    modelPick: '选择模型',
     approvalTitle: '需要审批',
     allow: '允许一次',
     deny: '拒绝',
@@ -209,6 +210,7 @@
     noCwd: 'This session has no workspace',
     modelLoading: 'Loading models…',
     modelFail: 'Model list unavailable',
+    modelPick: 'Select model',
     approvalTitle: 'Approval required',
     allow: 'Allow once',
     deny: 'Deny',
@@ -2108,7 +2110,7 @@
   function paintModelSeat() {
     if (!chat || !chat.modelBtn) return
     var cur = currentModelSel()
-    if (!cur) { chat.modelBtn.textContent = '…'; return }
+    if (!cur) { chat.modelBtn.textContent = T.modelPick; return }
     var seat = modelSeatLabel(cur, (state.modelCatalog && state.modelCatalog.groups) || [])
     chat.modelBtn.textContent = seat || cur.model
   }

@@ -2296,6 +2296,49 @@
     return label
   }
 
+  // 供应商显示名：目录里的 id 常是内部 slug。先查已知名，再按词表美化，
+  // 保证第三方实例配置的供应商（OpenAI / Anthropic / 本地网关等）也不露出裸 id。
+  function providerLabel(/** @type {any} */ g) {
+    if (!g) return ''
+    var known = {
+      'deepseek-official': 'DeepSeek', 'deepseek-ai': 'DeepSeek', 'deepseek-account': 'DeepSeek',
+      'llm-deepseek': 'DeepSeek', deepseek: 'DeepSeek',
+      'minimax-cn': 'MiniMax', minimax: 'MiniMax',
+      kimicode: 'Kimi', kimi: 'Kimi', moonshot: 'Moonshot',
+      anthropic: 'Anthropic', 'anthropic-messages': 'Anthropic', claude: 'Claude',
+      openai: 'OpenAI', 'openai-completions': 'OpenAI', 'openai-responses': 'OpenAI',
+      'azure-openai': 'Azure OpenAI', azure: 'Azure',
+      'google-generative-ai': 'Google', google: 'Google', gemini: 'Gemini',
+      qwen: 'Qwen', dashscope: 'DashScope', alibaba: 'Alibaba',
+      siliconflow: 'SiliconFlow', openrouter: 'OpenRouter',
+      groq: 'Groq', mistral: 'Mistral', xai: 'xAI', grok: 'Grok',
+      together: 'Together', fireworks: 'Fireworks', deepinfra: 'DeepInfra',
+      perplexity: 'Perplexity', cohere: 'Cohere', cerebras: 'Cerebras', sambanova: 'SambaNova',
+      ollama: 'Ollama', lmstudio: 'LM Studio', vllm: 'vLLM', local: 'Local',
+      zhipu: 'Zhipu', glm: 'GLM', baichuan: 'Baichuan',
+      volcengine: 'Volcengine', doubao: 'Doubao', ark: 'Ark',
+      hunyuan: 'Hunyuan', ernie: 'Ernie', baidu: 'Baidu',
+      stepfun: 'StepFun', spark: 'Spark', sensetime: 'SenseTime', yi: 'Yi', '01ai': '01.AI'
+    }
+    var id = String(g.id || '')
+    var name = typeof g.name === 'string' ? g.name.trim() : ''
+    var lc = id.toLowerCase()
+    if (known[lc]) return known[lc]
+    var nc = name.toLowerCase()
+    // name 是自带大小写/空格/中文的展示名时直接用它；全小写 slug 继续走词表。
+    if (name && name !== id && !/^[a-z0-9._-]+$/.test(name)) return name
+    if (name && known[nc]) return known[nc]
+    var words = String(id || name).split(/[-_.\s]+/).filter(Boolean)
+    if (!words.length) return id || name
+    var out = words.map(function (w) {
+      var lw = w.toLowerCase()
+      if (known[lw]) return known[lw]
+      if (/^[0-9]+$/.test(w)) return w
+      return lw.charAt(0).toUpperCase() + lw.slice(1)
+    })
+    return out.join(' ')
+  }
+
   function openModelSheet(/** @type {any} */ sessionId) {
     openSheet(function (/** @type {any} */ sheet) {
       renderModelSheet(sheet, sessionId)
@@ -2316,7 +2359,11 @@
         var any = false
         var curReasoning = null
         for (var gi = 0; gi < groups.length; gi++) {
-          var models = groups[gi].models || []
+          var grp = groups[gi]
+          var models = grp.models || []
+          if (!models.length) continue
+          // 按供应商归类：每组前加一行来源名
+          sheet.appendChild(el('div', 'sheet-sec', esc(providerLabel(grp))))
           for (var mi = 0; mi < models.length; mi++) {
             (function (g, m) {
               any = true

@@ -2298,9 +2298,17 @@
 
   function openModelSheet(/** @type {any} */ sessionId) {
     openSheet(function (/** @type {any} */ sheet) {
-      sheet.appendChild(el('div', 'sheet-empty', T.modelLoading))
-      rpc('session.models', {}).then(function (v) {
-        if (!sheetEl) return // sheet closed meanwhile
+      renderModelSheet(sheet, sessionId)
+    })
+  }
+
+  // 模型与推理等级在同一面板里完成：点模型后不关闭，重渲染出该模型的等级。
+  function renderModelSheet(/** @type {any} */ sheet, /** @type {any} */ sessionId) {
+    var keepTop = sheet.scrollTop
+    sheet.textContent = ''
+    sheet.appendChild(el('div', 'sheet-empty', T.modelLoading))
+    rpc('session.models', {}).then(function (v) {
+        if (!sheetEl || !sheet.isConnected) return // sheet closed meanwhile
         state.modelCatalog = v || state.modelCatalog
         sheet.textContent = ''
         var groups = (v && v.groups) || []
@@ -2318,9 +2326,10 @@
               var it = el('button', 'sheet-item' + (active ? ' active' : ''), esc(label))
               it.addEventListener('click', function () {
                 if (active) { closeSheet(); return } // same model: nothing to change
-                closeSheet()
                 // Model switch without effort: the host resolves the adapter
-                // default (official ModelSelect does the same).
+                // default (official ModelSelect does the same). Stay in the
+                // sheet so the effort section for the new route can be picked
+                // in the same pass.
                 rpc('session.selectModel', {
                   sessionId: sessionId,
                   provider: g.id,
@@ -2330,6 +2339,7 @@
                     chat.projections = chat.projections || {}
                     chat.projections.modelSelection = { next: r.selected, lastUsed: (chat.projections.modelSelection || {}).lastUsed || null }
                     paintModelSeat()
+                    renderModelSheet(sheet, sessionId)
                   }
                 }).catch(function (e) { console.error('[selectModel]', e) })
               })
@@ -2383,12 +2393,12 @@
           }
           sheet.appendChild(effRow)
         }
+        sheet.scrollTop = keepTop
       }).catch(function () {
         if (!sheetEl) return
         sheet.textContent = ''
         sheet.appendChild(el('div', 'sheet-empty', T.modelFail))
       })
-    })
   }
 
   // ── approvals / questions（rc.1：$events waterfall）──────────

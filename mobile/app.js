@@ -76,6 +76,8 @@
     minutesAgo: ' 分钟前',
     hoursAgo: ' 小时前',
     daysAgo: ' 天前',
+    today: '今天',
+    yesterday: '昨天',
     running: '运行中',
     historyFail: '历史加载失败',
     loadOlder: '加载更早的消息',
@@ -178,6 +180,8 @@
     minutesAgo: 'm ago',
     hoursAgo: 'h ago',
     daysAgo: 'd ago',
+    today: 'Today',
+    yesterday: 'Yesterday',
     running: 'running',
     historyFail: 'Failed to load history',
     loadOlder: 'Load older messages',
@@ -671,6 +675,45 @@
     return Math.floor(h / 24) + T.daysAgo
   }
 
+  // ── in-chat time anchors ───────────────────────────────────
+  function localDay(ts) {
+    var d = new Date(ts)
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
+  }
+  function fmtDay(ts) {
+    var now = new Date()
+    var d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    if (ts >= d0) return T.today
+    if (ts >= d0 - 86400000) return T.yesterday
+    var d = new Date(ts)
+    var md = zh ? (d.getMonth() + 1) + '月' + d.getDate() + '日'
+                : (d.getMonth() + 1) + '/' + d.getDate()
+    return d.getFullYear() !== now.getFullYear()
+      ? (zh ? d.getFullYear() + '年' + md : d.getFullYear() + ' ' + md) : md
+  }
+  function fmtHM(ts) {
+    var d = new Date(ts)
+    var h = d.getHours(), m = d.getMinutes()
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m
+  }
+  // Message anchor: advance the cursor and drop a centered separator when
+  // the calendar day flips or the gap since the previous anchor exceeds
+  // 30 minutes. A null time never anchors (e.g. session head rows), so the
+  // feature degrades silently on events without a timestamp.
+  function anchorTime(t) {
+    if (!chat || t == null) return
+    var prev = chat.lastAnchor
+    chat.lastAnchor = t
+    if (prev == null) return
+    if (localDay(prev) !== localDay(t)) {
+      chat.box.appendChild(el('div', 'tsep', fmtDay(t)))
+    } else if (t - prev > 1800000) {
+      // Same-day gap: label with the clock time so consecutive rows never
+      // repeat the same day word ("昨天 ×3" would read as a glitch).
+      chat.box.appendChild(el('div', 'tsep', fmtHM(t)))
+    }
+  }
+
   /** @param {string} [p] @returns {string} */
   function baseName(p) {
     if (!p) return zh ? '默认工作区' : 'default'
@@ -888,7 +931,11 @@
       sx = t.clientX; sy = t.clientY
       fired = false
       clearTimeout(lpT)
-      lpT = setTimeout(function () { fired = true; onFire() }, 500)
+      lpT = setTimeout(function () {
+        fired = true
+        if (navigator.vibrate) navigator.vibrate(10)
+        onFire()
+      }, 500)
     }, { passive: true })
     node.addEventListener('touchmove', function (/** @type {any} */ ev) {
       var t = ev.touches[0]
@@ -1505,10 +1552,11 @@
   function stepKey(/** @type {any} */ turn, /** @type {any} */ step) { return turn + ':' + step }
 
   // Create or reuse the live assistant bubble for one step.
-  function stepBubble(/** @type {any} */ turn, /** @type {any} */ step) {
+  function stepBubble(/** @type {any} */ turn, /** @type {any} */ step, /** @type {any} */ time) {
     var key = stepKey(turn, step)
     var st = chat.steps[key]
     if (st) return st
+    if (typeof time === 'number') anchorTime(time)
     var node = el('div', 'msg assistant live')
     var body = el('div', 'md')
     node.appendChild(body)
@@ -1561,10 +1609,10 @@
     st.node.classList.toggle('empty', !text && !hasReason)
   }
 
-  function finalizeStep(/** @type {any} */ turn, /** @type {any} */ step, /** @type {any} */ message, /** @type {any} */ interrupted) {
+  function finalizeStep(/** @type {any} */ turn, /** @type {any} */ step, /** @type {any} */ message, /** @type {any} */ interrupted, /** @type {any} */ time) {
     var key = stepKey(turn, step)
     var st = chat.steps[key]
-    if (!st) st = stepBubble(turn, step)
+    if (!st) st = stepBubble(turn, step, time)
     var text = textOfBlocks(message && message.content)
     var reason = reasoningOfBlocks(message && message.content)
     var html = text ? renderMd(text) : null
@@ -1644,13 +1692,13 @@
       // index），展开等价于逐条 delta 落进同一个 step 泡。tool-call-chunks
       // 不用展开——工具卡片由独立的 tool/call 事件携带。
       case 'chunkrow/text-chunks': {
-        var stp = stepBubble(d.turn, d.step)
+        var stp = stepBubble(d.turn, d.step, ev.time)
         stp.texts[d.index] = (stp.texts[d.index] || '') + (d.texts || []).join('')
         paintLiveStep(stp)
         break
       }
       case 'chunkrow/reasoning-chunks': {
-        var str = stepBubble(d.turn, d.step)
+        var str = stepBubble(d.turn, d.step, ev.time)
         str.reasoning[d.index] = (str.reasoning[d.index] || '') + (d.texts || []).join('')
         paintLiveStep(str)
         break
@@ -1667,7 +1715,11 @@
         if (ut) {
           var en = chat.box.querySelector('.empty-note')
           if (en) en.remove()
-          chat.box.appendChild(el('div', 'msg user', ut))
+          var ts = typeof ev.time === 'number' ? ev.time : null
+          if (ts != null) anchorTime(ts)
+          var ub = el('div', 'msg user', ut)
+          if (ts != null) ub.appendChild(el('span', 'mt', fmtHM(ts)))
+          chat.box.appendChild(ub)
           maybeScroll(chat.box)
         }
         break
@@ -1675,7 +1727,7 @@
       case 'assistant/chunk': {
         var c = d.chunk
         if (!c) break
-        var st = stepBubble(d.turn, d.step)
+        var st = stepBubble(d.turn, d.step, ev.time)
         if (c.type === 'text-delta') {
           st.texts[c.index] = (st.texts[c.index] || '') + c.text
           paintLiveStep(st)
@@ -1688,7 +1740,7 @@
         break
       }
       case 'assistant/message': {
-        finalizeStep(d.turn, d.step, d.message, d.interrupted)
+        finalizeStep(d.turn, d.step, d.message, d.interrupted, ev.time)
         maybeScroll(chat.box)
         break
       }
@@ -1763,6 +1815,7 @@
     chat.box.textContent = ''
     chat.steps = Object.create(null)
     chat.cards = Object.create(null)
+    chat.lastAnchor = null
     chat.maxSeq = chat.cursor || 0
     if (chat.hasMore) {
       var older = el('button', 'older', T.loadOlder)
@@ -1791,6 +1844,7 @@
     chat = {
       id: id, box: null, events: [], hasMore: false, baseSeq: null, cursor: 0,
       maxSeq: 0, steps: Object.create(null), cards: Object.create(null), olderBtn: null,
+      lastAnchor: null,
       projections: null, running: !!(s && s.running),
       stick: true, ignoreScrollUntil: 0, jump: null,
       app: app, s: s,

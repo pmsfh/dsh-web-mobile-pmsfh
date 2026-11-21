@@ -17,7 +17,7 @@
 window.__ModuleLoader__.load({
   id: 'dsh-web-mobile-pmsfh',
   factory: function (require) {
-    var module = { exports: {} }
+    var module = { exports: /** @type {Record<string, unknown>} */ ({}) }
     var exports = module.exports
 
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })

@@ -1,7 +1,8 @@
 /**
  * DSH wire protocol types (v0.1.2-rc.1, Typert Gateway) — shared between
- * mobile/app.js (unary RPC + remote.mux logical streams) and lib/index.js
- * (cordis host surface). Pure declarations: nothing here emits code.
+ * mobile/app.js (unary RPC + remote.mux logical streams), client/client.js
+ * (bundle registration protocol) and lib/index.js (cordis host surface).
+ * Pure declarations: nothing here emits code.
  *
  * Source of truth = the wire shapes consumed in mobile/app.js; loosened with
  * optional fields where the page only reads a subset (e.g. SessionSummary).
@@ -245,6 +246,38 @@ export interface ToolCardState {
   [key: string]: any
 }
 
+// ── client bundle registration protocol (client/) ─────────────
+//
+// Shapes mirror @deepseek-ai/dsh-client-modules' manifest.d.ts; the plugin
+// cannot import that package directly, so the subset it relies on is declared
+// here and checked by tsc.
+
+/** Module-table require passed to a client bundle factory. */
+export interface ClientBundleRequire {
+  (specifier: string): unknown
+  /** Load and resolve a package-local dynamic chunk asynchronously. */
+  async(specifier: string): Promise<unknown>
+  /** Resolve a package-asset reference to the URL the page loads. */
+  asset(reference: string): string
+}
+
+/** One bundle registration submitted through window.__ModuleLoader__.load. */
+export interface ClientBundleRegistration {
+  /** Plugin id (package name); must match the boot graph row being executed. */
+  id: string
+  /** Package-local chunk filename; absent for the package's client.js entry. */
+  chunk?: string
+  factory: (require: ClientBundleRequire) => Record<string, unknown>
+}
+
+/** Page-global facade installed by the DSH HTML bootstrap before plugin bundles run. */
+export interface ClientModuleLoaderTarget {
+  mode: 'queue' | 'live'
+  pendingQueue: ClientBundleRegistration[]
+  load(registration: ClientBundleRegistration): void
+  create(options: unknown): unknown
+}
+
 // ── cordis host surface (lib/) ─────────────────────────────────
 
 declare global {
@@ -257,6 +290,8 @@ declare global {
     __frames?: any
     /** Debug handle: live API for e2e probes. */
     __dshwm?: any
+    /** Registration facade; non-optional here because a bundle only runs after it is installed. */
+    __ModuleLoader__: ClientModuleLoaderTarget
   }
 }
 

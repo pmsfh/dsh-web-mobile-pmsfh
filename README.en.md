@@ -296,7 +296,7 @@ DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
   (`@ts-check` applies per file)
 - Debug hooks: the page exposes `__dshwm.dispatch()`, which injects synthetic
   mux frames to rehearse approval and question cards; `__frames` records the
-  sequence of received frame types, and `__dshwm.pending()` returns the
+  most recent 200 received frame types, and `__dshwm.pending()` returns the
   pending requests
 - Soft-keyboard fit: `#app` is pinned to the visualViewport height, with the
   `interactive-widget=resizes-content` meta alongside, so the composer rides

@@ -227,7 +227,7 @@ DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
 
 - 无构建链：仓库即运行产物，改动落盘后重启 dsh-web 即生效（页面文件每次请求都从磁盘读）
 - 语法检查 `node --check`，类型检查 `tsc --noEmit`（`@ts-check` 逐文件生效）
-- 调试钩子：页面暴露 `__dshwm.dispatch()`，可向 mux 注入合成帧，用于演练审批与问答弹窗；`__frames` 记录收到的帧类型序列，`__dshwm.pending()` 返回当前待处理条目
+- 调试钩子：页面暴露 `__dshwm.dispatch()`，可向 mux 注入合成帧，用于演练审批与问答弹窗；`__frames` 记录收到的帧类型序列（仅保留最近 200 条），`__dshwm.pending()` 返回当前待处理条目
 - 软键盘适配：`#app` 以 visualViewport 高度为准钉高，配合
   `interactive-widget=resizes-content` meta，保证输入框骑在键盘上方
 - 词典集中在 `mobile/app.js` 顶部的 `T` 对象，中英两套键值对照，改界面文案时两套都要动

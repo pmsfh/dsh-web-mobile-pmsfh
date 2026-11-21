@@ -293,7 +293,7 @@
     return n
   }
   /** @param {any} s @returns {string} */
-  function esc(s) { return String(s == null ? '' : s) }
+  function asString(s) { return String(s == null ? '' : s) }
 
   // ── RPC layer ───────────────────────────────────────────────
   // rc.1: endpoint = <namespace>/<method>; payload always {args:{named}}.
@@ -488,7 +488,10 @@
       }
       if (f.type !== 'item') return
       try {
-        ;(window.__frames = window.__frames || []).push((f.value && f.value.type) + ':' + (f.value && (f.value.agentId || (f.value.event && f.value.event.type) || '')))
+        // README 文档化的调试钩子：环形保留最近 200 条，长会话不无限增长。
+        var fr = (window.__frames = window.__frames || [])
+        fr.push((f.value && f.value.type) + ':' + (f.value && (f.value.agentId || (f.value.event && f.value.event.type) || '')))
+        if (fr.length > 200) fr.splice(0, fr.length - 200)
       } catch (e) {}
       if (f.streamId === STREAM_EVENTS) return onEventsFrame(f.value)
       if (f.streamId === STREAM_WS) return onWorkspaceFrame(f.value)
@@ -1757,7 +1760,7 @@
       }
       case 'tool/call': {
         var card = toolCard(d.callId)
-        card.name.textContent = esc(d.name)
+        card.name.textContent = asString(d.name)
         card.args = d.arguments || ''
         card.sum.textContent = argsSummary(d.name, card.args)
         break
@@ -1912,6 +1915,7 @@
   function loadOlder() {
     if (!chat || chat.baseSeq == null || chat.loadingOlder || !chat.cursor) return
     chat.loadingOlder = true
+    var me = chat // 迟到的分页响应只许写回发起它的会话
     if (chat.olderBtn) chat.olderBtn.textContent = T.loading
     rpc('session.page', {
       address: { kind: 'session', sessionId: chat.id },
@@ -1919,7 +1923,7 @@
       beforeSeq: chat.baseSeq,
       maxMessages: 20,
     }).then(function (v) {
-      if (!chat) return
+      if (chat !== me) return
       var older = (v && v.records) || []
       if (older.length) {
         var oldH = chat.box.scrollHeight
@@ -1935,7 +1939,7 @@
         if (chat.olderBtn) chat.olderBtn.remove()
       }
     }).catch(function (e) { console.error('[older]', e) })
-      .then(function () { if (chat) chat.loadingOlder = false })
+      .then(function () { if (chat === me) me.loadingOlder = false })
   }
 
   // Live frames for the open chat: seq-dedup stitch.
@@ -2145,7 +2149,7 @@
     for (var i = 0; i < list.length; i++) {
       (function (item, idx) {
         var chip = el('span', 'c-chip')
-        chip.appendChild(el('span', 'c-chip-name', esc(item.name || 'attachment')))
+        chip.appendChild(el('span', 'c-chip-name', asString(item.name || 'attachment')))
         var x = el('button', 'c-chip-x', '×')
         x.setAttribute('aria-label', T.detach)
         x.addEventListener('click', function () {
@@ -2208,7 +2212,7 @@
           if (!files.length) { sheet.appendChild(el('div', 'sheet-empty', T.noFiles)); return }
           for (var i = 0; i < files.length; i++) {
             (function (f) {
-              var it = el('button', 'sheet-item', esc(f.name))
+              var it = el('button', 'sheet-item', asString(f.name))
               it.addEventListener('click', function () {
                 closeSheet()
                 downloadFile(sessionId, f.name)
@@ -2373,14 +2377,14 @@
           var models = grp.models || []
           if (!models.length) continue
           // 按供应商归类：每组前加一行来源名
-          sheet.appendChild(el('div', 'sheet-sec', esc(providerLabel(grp))))
+          sheet.appendChild(el('div', 'sheet-sec', asString(providerLabel(grp))))
           for (var mi = 0; mi < models.length; mi++) {
             (function (g, m) {
               any = true
               var label = m.name || m.model || m.id
               var active = cur && cur.provider === g.id && cur.model === (m.model || m.id)
               if (active && m.reasoning) curReasoning = m.reasoning
-              var it = el('button', 'sheet-item' + (active ? ' active' : ''), esc(label))
+              var it = el('button', 'sheet-item' + (active ? ' active' : ''), asString(label))
               it.addEventListener('click', function () {
                 if (active) { closeSheet(); return } // same model: nothing to change
                 // Model switch without effort: the host resolves the adapter
@@ -2392,7 +2396,7 @@
                   provider: g.id,
                   model: m.model || m.id,
                 }).then(function (r) {
-                  if (r && r.selected && chat) {
+                  if (r && r.selected && chat && chat.id === sessionId) {
                     chat.projections = chat.projections || {}
                     chat.projections.modelSelection = { next: r.selected, lastUsed: (chat.projections.modelSelection || {}).lastUsed || null }
                     paintModelSeat()
@@ -2412,7 +2416,7 @@
         // (official ModelSelect: effort belongs to the exact model). A
         // "Default" choice appears only when the adapter has no default.
         if (cur && curReasoning) {
-          sheet.appendChild(el('div', 'sheet-sec', esc(T.effort)))
+          sheet.appendChild(el('div', 'sheet-sec', asString(T.effort)))
           var effRow = el('div', 'effort-row')
           var effOpts = []
           if (curReasoning.defaultEffort === undefined) {
@@ -2427,7 +2431,7 @@
           for (var oi = 0; oi < effOpts.length; oi++) {
             (function (opt) {
               var on = opt.effort === effNow
-              var chip = el('button', 'effort-chip' + (on ? ' on' : ''), esc(opt.label))
+              var chip = el('button', 'effort-chip' + (on ? ' on' : ''), asString(opt.label))
               chip.addEventListener('click', function () {
                 if (on) { closeSheet(); return } // already effective
                 closeSheet()
@@ -2435,7 +2439,7 @@
                 var payload = { sessionId: sessionId, provider: cur.provider, model: cur.model }
                 if (opt.effort !== undefined) payload.reasoningEffort = opt.effort
                 rpc('session.selectModel', payload).then(function (r) {
-                  if (r && r.selected && chat) {
+                  if (r && r.selected && chat && chat.id === sessionId) {
                     chat.projections = chat.projections || {}
                     chat.projections.modelSelection = { next: r.selected, lastUsed: (chat.projections.modelSelection || {}).lastUsed || null }
                     paintModelSeat()
@@ -2628,7 +2632,7 @@
     var mask = el('div', 'mask')
     var sheet = el('div', 'sheet')
     sheet.appendChild(el('div', 'sheet-title', T.approvalTitle))
-    sheet.appendChild(el('div', 'sheet-body', esc(req.toolName) + (req.reason ? '\n' + esc(req.reason) : '')))
+    sheet.appendChild(el('div', 'sheet-body', asString(req.toolName) + (req.reason ? '\n' + asString(req.reason) : '')))
     var acts = el('div', 'sheet-actions')
     var deny = el('button', 'btn-ghost', T.deny)
     deny.addEventListener('click', function () { submitBusy(entry, 'rejected') })
@@ -2653,15 +2657,15 @@
       (function (q) {
         picks[q.id] = { selected: [], custom: '' }
         var block = el('div', 'q-block')
-        if (q.header) block.appendChild(el('div', 'q-head', esc(q.header)))
-        block.appendChild(el('div', 'q-text', esc(q.question)))
-        if (q.detail) block.appendChild(el('div', 'q-detail', esc(q.detail)))
+        if (q.header) block.appendChild(el('div', 'q-head', asString(q.header)))
+        block.appendChild(el('div', 'q-text', asString(q.question)))
+        if (q.detail) block.appendChild(el('div', 'q-detail', asString(q.detail)))
         var opts = q.options || []
         if (opts.length) {
           var optBox = el('div', 'q-opts')
           for (var oi = 0; oi < opts.length; oi++) {
             (function (opt) {
-              var chip = el('button', 'q-opt', esc(opt.label))
+              var chip = el('button', 'q-opt', asString(opt.label))
               chip.addEventListener('click', function () {
                 var sel = picks[q.id].selected
                 var at = sel.indexOf(opt.label)

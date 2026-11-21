@@ -687,11 +687,11 @@
   }
 
   // ── in-chat time anchors ───────────────────────────────────
-  function localDay(ts) {
+  function localDay(/** @type {number} */ ts) {
     var d = new Date(ts)
     return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
   }
-  function fmtDay(ts) {
+  function fmtDay(/** @type {number} */ ts) {
     var now = new Date()
     var d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
     if (ts >= d0) return T.today
@@ -702,7 +702,7 @@
     return d.getFullYear() !== now.getFullYear()
       ? (zh ? d.getFullYear() + '年' + md : d.getFullYear() + ' ' + md) : md
   }
-  function fmtHM(ts) {
+  function fmtHM(/** @type {number} */ ts) {
     var d = new Date(ts)
     var h = d.getHours(), m = d.getMinutes()
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m
@@ -711,7 +711,7 @@
   // the calendar day flips or the gap since the previous anchor exceeds
   // 30 minutes. A null time never anchors (e.g. session head rows), so the
   // feature degrades silently on events without a timestamp.
-  function anchorTime(t) {
+  function anchorTime(/** @type {number|null} */ t) {
     if (!chat || t == null) return
     var prev = chat.lastAnchor
     chat.lastAnchor = t
@@ -2309,6 +2309,7 @@
   // 保证第三方实例配置的供应商（OpenAI / Anthropic / 本地网关等）也不露出裸 id。
   function providerLabel(/** @type {any} */ g) {
     if (!g) return ''
+    /** @type {Record<string, string>} */
     var known = {
       'deepseek-official': 'DeepSeek', 'deepseek-ai': 'DeepSeek', 'deepseek-account': 'DeepSeek',
       'llm-deepseek': 'DeepSeek', deepseek: 'DeepSeek',

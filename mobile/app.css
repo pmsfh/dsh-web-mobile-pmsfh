@@ -636,14 +636,52 @@ details.reasoning[open] summary::before { content: '▾ '; }
   justify-content: center;
 }
 .sheet {
+  position: relative;
   width: 100%;
   max-height: 72vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
   border-radius: 16px 16px 0 0;
   background: var(--surface);
   animation: sheet-in 0.2s ease-out;
+  overflow: hidden;
+}
+.sheet:focus { outline: none; }
+/* C1: grabber strip; content re-renders stay inside .sheet-content */
+.sheet-grabber {
+  flex: none;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--text3);
+  margin: 8px auto 6px;
+}
+/* C1: explicit, labelled close control (grabber is decorative; Esc is
+   keyboard-only) — top-right 44px hit area, survives content re-renders */
+.sheet-close {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: none;
+  color: var(--text2);
+  font-size: 18px;
+  line-height: 44px;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sheet-close:active { color: var(--text); }
+/* titles must not run under the absolutely-positioned close button */
+.sheet-title { padding-right: 48px; }
+.sheet-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 14px calc(14px + env(safe-area-inset-bottom, 0px));
 }
 @keyframes sheet-in { from { transform: translateY(24px); opacity: 0.6; } }
 .sheet-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
@@ -800,6 +838,15 @@ details.reasoning[open] summary::before { content: '▾ '; }
 }
 .cs-note { font-size: 12px; color: var(--text3); margin: 4px 0; }
 .cs-create { margin-top: 16px; width: 100%; }
+/* C3: why the create button is grey — inline, clears on unlock */
+.cs-create-hint {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text2);
+}
+/* C4: Full access option label carries the risk tone */
+.cs-perm-risky > div:first-child { color: var(--danger); }
 .cs-confirm {
   margin: auto;
   width: min(88vw, 400px);

@@ -57,6 +57,11 @@
     permWorkspaceWriteDesc: '可写入工作区与允许的临时目录；越界操作需审批',
     permFullAccessDesc: '完全文件访问，无需审批确认',
     create: '创建会话',
+    createWhy: '先选工作区与权限档位',
+    createWhyWs: '先选工作区',
+    createWhyPerm: '先选权限档位',
+    createWhyNewWs: '先新建工作区',
+    close: '关闭',
     choosePermFirst: '请先选择权限',
     permFail: '权限设置失败，将使用默认权限',
     createFail: '创建失败',
@@ -99,6 +104,7 @@
     queued: ' 条排队中',
     attach: '附件',
     upload: '添加附件',
+    attachTitle: '附件',
     download: '下载工作区文件',
     uploading: '上传中…',
     uploaded: '已添加 ',
@@ -116,6 +122,7 @@
     modelEmpty: '暂无可用模型',
     modelPick: '选择模型',
     approvalTitle: '需要审批',
+    questionsTitle: '需要回答',
     apCmd: '命令',
     apFile: '文件',
     apCopy: '复制',
@@ -176,6 +183,11 @@
     permWorkspaceWriteDesc: 'Write inside the workspace and permitted temporary directories; wider retries require approval',
     permFullAccessDesc: 'Full file access without approval prompts',
     create: 'Create session',
+    createWhy: 'Pick a workspace and a permission level first',
+    createWhyWs: 'Pick a workspace first',
+    createWhyPerm: 'Pick a permission level first',
+    createWhyNewWs: 'Create a workspace first',
+    close: 'Close',
     choosePermFirst: 'Choose a permission first',
     permFail: 'Permission setup failed; session uses the default',
     createFail: 'Failed to create',
@@ -218,6 +230,7 @@
     queued: ' queued',
     attach: 'Attach',
     upload: 'Add attachment',
+    attachTitle: 'Attachments',
     download: 'Download workspace file',
     uploading: 'Uploading…',
     uploaded: 'Added ',
@@ -235,6 +248,7 @@
     modelEmpty: 'No models available',
     modelPick: 'Select model',
     approvalTitle: 'Approval required',
+    questionsTitle: 'Question',
     apCmd: 'Command',
     apFile: 'File',
     apCopy: 'Copy',
@@ -855,7 +869,7 @@
         f.submit()
       })
       sheet.appendChild(out)
-    })
+    }, T.account)
   }
 
   // Header icons are inline SVG, not text glyphs: the visible ink of '⟳' and
@@ -1142,7 +1156,7 @@
         })
       })
       sheet.appendChild(ar)
-    })
+    }, T.sessionActions)
   }
 
   // ── workspace sheet (long-press group header): rename/delete ─
@@ -1169,7 +1183,7 @@
         })
       })
       sheet.appendChild(del)
-    })
+    }, ws.title || baseName(ws.path))
   }
 
   function renderRename(/** @type {any} */ sheet, /** @type {any} */ ws) {
@@ -1207,21 +1221,19 @@
   // Generic confirm dialog (workspace delete gate). Official wording comes
   // from the caller; the danger action needs an explicit confirm tap.
   function confirmDialog(/** @type {any} */ title, /** @type {any} */ desc, /** @type {any} */ actionLabel, /** @type {any} */ onYes) {
-    var mask = el('div', 'mask')
-    var box = el('div', 'cs-confirm')
+    var shell = openModalShell({ label: title, confirm: true })
+    var mask = shell.mask
+    var box = shell.content
     box.appendChild(el('div', 'cs-confirm-title', title))
     box.appendChild(el('div', 'cs-confirm-desc', desc))
     var actions = el('div', 'sheet-actions')
     var cancel = el('button', 'btn-ghost', T.cancel)
-    cancel.addEventListener('click', function () { mask.remove() })
+    cancel.addEventListener('click', function () { modalClose(mask) })
     var ok = el('button', 'btn-primary btn-danger', actionLabel)
-    ok.addEventListener('click', function () { mask.remove(); onYes() })
+    ok.addEventListener('click', function () { modalClose(mask); onYes() })
     actions.appendChild(cancel)
     actions.appendChild(ok)
     box.appendChild(actions)
-    mask.appendChild(box)
-    mask.addEventListener('click', function (/** @type {any} */ ev) { if (ev.target === mask) mask.remove() })
-    document.body.appendChild(mask)
   }
 
   // ── new-session sheet (workspace + permission; v2.5 adds inline
@@ -1306,7 +1318,9 @@
         sheet.appendChild(permHead)
         for (var j = 0; j < PERMS.length; j++) {
           (function (p) {
-            var b = el('button', 'sheet-item cs-perm')
+            // C4: the Full access option carries the risk tone on its label
+            // (the confirm gate and acknowledgment checkbox already exist).
+            var b = el('button', 'sheet-item cs-perm' + (p.risky ? ' cs-perm-risky' : ''))
             b.appendChild(el('div', null, permLabel(p.value)))
             b.appendChild(el('div', 'ws-sub', T[p.descKey]))
             b.addEventListener('click', function () { pickPerm(b, p.value) })
@@ -1323,6 +1337,10 @@
           doCreate(chosen)
         })
         sheet.appendChild(createBtn)
+        // C3: state why the create button is disabled instead of leaving a
+        // silent grey control; the hint clears as soon as it unlocks.
+        var createHint = el('div', 'cs-create-hint', T.createWhy)
+        sheet.appendChild(createHint)
         // Auto-select the freshly created workspace AFTER createBtn exists
         // (pickWs touches createBtn via refresh()).
         if (preselectBtn && preselectWs) {
@@ -1366,8 +1384,19 @@
         }
         function refresh() {
           createBtn.disabled = !chosen.ws || !chosen.perm
+          // Review: state WHAT is missing — entering from an empty-group CTA
+          // has the workspace preselected, so a blanket "pick both" lie; with
+          // zero workspaces there is nothing to pick, point at creating one.
+          if (!chosen.ws && !chosen.perm) {
+            createHint.textContent = state.workspaces.length ? T.createWhy : T.createWhyNewWs
+          } else if (!chosen.ws) {
+            createHint.textContent = state.workspaces.length ? T.createWhyWs : T.createWhyNewWs
+          } else {
+            createHint.textContent = T.createWhyPerm
+          }
+          createHint.style.display = createBtn.disabled ? '' : 'none'
         }
-      })
+      }, T.newSession)
     }
 
     // Directory browser rendered INSIDE the same sheet (no nested mask):
@@ -1474,8 +1503,9 @@
   // Full access keeps the official risk gate: an explicit acknowledge
   // dialog before the preset can be applied (desktop wording, verbatim).
   function confirmFullAccess(/** @type {any} */ onYes) {
-    var mask = el('div', 'mask')
-    var box = el('div', 'cs-confirm')
+    var shell = openModalShell({ label: T.faTitle, confirm: true })
+    var mask = shell.mask
+    var box = shell.content
     box.appendChild(el('div', 'cs-confirm-title', T.faTitle))
     box.appendChild(el('div', 'cs-confirm-desc', T.faDesc))
     var ack = el('label', 'cs-ack')
@@ -1491,14 +1521,11 @@
     enable.textContent = T.faEnable
     enable.disabled = true
     cb.addEventListener('change', function () { enable.disabled = !cb.checked })
-    cancel.addEventListener('click', function () { mask.remove() })
-    enable.addEventListener('click', function () { mask.remove(); onYes() })
+    cancel.addEventListener('click', function () { modalClose(mask) })
+    enable.addEventListener('click', function () { modalClose(mask); onYes() })
     actions.appendChild(cancel)
     actions.appendChild(enable)
     box.appendChild(actions)
-    mask.appendChild(box)
-    mask.addEventListener('click', function (/** @type {any} */ ev) { if (ev.target === mask) mask.remove() })
-    document.body.appendChild(mask)
   }
 
   function doCreate(/** @type {any} */ chosen) {
@@ -2024,29 +2051,159 @@
     toastTimer = setTimeout(function () { t.classList.remove('show') }, 2500)
   }
 
+  // ── shared modal shell（C2：六处 mask 统一收口）──────────────
+  // Grabber, Escape, focus trapping (background and covered shells go
+  // inert, Tab cycles inside), and focus return on close all live here;
+  // call sites pass content and close semantics only.
+  /** @type {any} */
+  var modalStack = [] // open shells; the last entry is the interactive one
+
+  /** @param {any} opts { label: string, confirm: bool, maskClose: bool, onClose: fn } */
+  function openModalShell(/** @type {any} */ opts) {
+    var prevFocus = document.activeElement
+    var mask = el('div', 'mask')
+    mask.__modalMask = true
+    var box = el('div', opts.confirm ? 'cs-confirm' : 'sheet')
+    var content = box
+    if (!opts.confirm) {
+      // Bottom sheets carry a grabber strip (C1) plus an explicit close
+      // button — the grabber is decorative, and Esc is keyboard-only, so
+      // touch screen-reader users need a real labelled control to exit.
+      // Content re-renders (textContent = '') stay inside the wrapper, so
+      // the grabber and close button survive them.
+      var grabber = el('div', 'sheet-grabber')
+      grabber.setAttribute('aria-hidden', 'true')
+      box.appendChild(grabber)
+      var closeBtn = el('button', 'sheet-close', '✕')
+      closeBtn.setAttribute('type', 'button')
+      closeBtn.setAttribute('aria-label', T.close)
+      closeBtn.addEventListener('click', function () {
+        if (shell.onClose) shell.onClose()
+        else modalClose(mask)
+      })
+      box.appendChild(closeBtn)
+      content = el('div', 'sheet-content')
+      box.appendChild(content)
+    }
+    box.setAttribute('role', 'dialog')
+    box.setAttribute('aria-modal', 'true')
+    // Accessible name: an explicit label lives on the box itself, so content
+    // re-renders (textContent = '' — directory browser, rename, model sheet
+    // refresh) cannot orphan it the way an aria-labelledby pointing into the
+    // panel content could.
+    if (opts.label) box.setAttribute('aria-label', asString(opts.label))
+    box.tabIndex = -1
+    var shell = { mask: mask, box: box, content: content, prevFocus: prevFocus, onClose: opts.onClose || null }
+    if (opts.maskClose !== false) {
+      mask.addEventListener('click', function (/** @type {any} */ ev) {
+        if (ev.target !== mask) return
+        if (shell.onClose) shell.onClose()
+        else modalClose(mask)
+      })
+    }
+    modalStack.push(shell)
+    syncModalInert()
+    mask.appendChild(box)
+    document.body.appendChild(mask)
+    // Bring keyboard/AT focus into the dialog; the panel is not a text
+    // field so this does not pop the soft keyboard.
+    setTimeout(function () {
+      if (modalStack[modalStack.length - 1] !== shell) return
+      try { box.focus({ preventScroll: true }) } catch (/** @type {any} */ e) { box.focus() }
+    }, 30)
+    return shell
+  }
+
+  function modalClose(/** @type {any} */ mask) {
+    var idx = -1
+    for (var i = 0; i < modalStack.length; i++) { if (modalStack[i].mask === mask) { idx = i; break } }
+    if (idx < 0) { mask.remove(); return } // defensive: not a shell
+    var shell = modalStack[idx]
+    modalStack.splice(idx, 1)
+    shell.mask.remove()
+    // Un-inert BEFORE returning focus: focusing into a subtree that is
+    // still inert is silently ignored.
+    syncModalInert()
+    var pf = shell.prevFocus
+    if (pf && pf !== document.body && pf.isConnected) {
+      try { pf.focus({ preventScroll: true }) } catch (/** @type {any} */ e) { pf.focus() }
+    }
+  }
+
+  // Only the topmost shell stays interactive; everything below (covered
+  // shells, the page) goes inert + aria-hidden.
+  function syncModalInert() {
+    var top = modalStack.length ? modalStack[modalStack.length - 1] : null
+    for (var i = 0; i < modalStack.length; i++) setInertState(modalStack[i].mask, modalStack[i] !== top)
+    var kids = document.body.children
+    for (var k = 0; k < kids.length; k++) {
+      /** @type {any} */
+      var node = kids[k]
+      if (node.__modalMask) continue
+      setInertState(node, !!top)
+    }
+  }
+
+  /** @param {any} node @param {any} off */
+  function setInertState(node, off) {
+    if (off) { node.inert = true; node.setAttribute('aria-hidden', 'true') }
+    else { node.inert = false; node.removeAttribute('aria-hidden') }
+  }
+
+  document.addEventListener('keydown', function (/** @type {any} */ ev) {
+    if (!modalStack.length) return
+    var shell = modalStack[modalStack.length - 1]
+    if (ev.key === 'Escape') {
+      ev.preventDefault()
+      if (shell.onClose) shell.onClose()
+      else modalClose(shell.mask)
+      return
+    }
+    if (ev.key !== 'Tab') return
+    var focusables = []
+    var nodes = shell.box.querySelectorAll('button, [href], input, select, textarea, [tabindex]')
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i]
+      if (n.tabIndex < 0 || n.disabled || n.getAttribute('aria-hidden') === 'true') continue
+      if (!(n.offsetWidth || n.offsetHeight || n.getClientRects().length)) continue
+      focusables.push(n)
+    }
+    if (!focusables.length) {
+      ev.preventDefault()
+      try { shell.box.focus({ preventScroll: true }) } catch (/** @type {any} */ e) { shell.box.focus() }
+      return
+    }
+    var first = focusables[0]
+    var last = focusables[focusables.length - 1]
+    var active = document.activeElement
+    var inside = !!active && active !== shell.box && shell.box.contains(active)
+    if (ev.shiftKey) {
+      if (!inside || active === first) { ev.preventDefault(); last.focus() }
+    } else {
+      if (!inside || active === last) { ev.preventDefault(); first.focus() }
+    }
+  })
+
   // ── generic bottom sheet ────────────────────────────────────
   /** @type {any} */
   var sheetEl = null
   var sheetOpenedAt = 0
   function closeSheet() {
-    if (sheetEl) { sheetEl.remove(); sheetEl = null }
+    if (sheetEl) { modalClose(sheetEl); sheetEl = null }
   }
-  function openSheet(/** @type {any} */ build) {
+  function openSheet(/** @type {any} */ build, /** @type {any} */ label) {
     closeSheet()
-    var mask = el('div', 'mask')
-    var sheet = el('div', 'sheet')
+    var shell = openModalShell({ label: label, onClose: closeSheet, maskClose: false })
     sheetOpenedAt = Date.now()
-    mask.addEventListener('click', function (/** @type {any} */ ev) {
+    shell.mask.addEventListener('click', function (/** @type {any} */ ev) {
       // The synthesized click trailing a long-press lands on the mask at the
       // press point — swallow it or the sheet would close on finger lift.
       if (Date.now() - sheetOpenedAt < 500) return
-      if (ev.target === mask) closeSheet()
+      if (ev.target === shell.mask) closeSheet()
     })
-    mask.appendChild(sheet)
-    document.body.appendChild(mask)
-    sheetEl = mask
-    build(sheet)
-    return sheet
+    sheetEl = shell.mask
+    build(shell.content)
+    return shell.content
   }
 
   // ── composer ────────────────────────────────────────────────
@@ -2225,7 +2382,7 @@
       sheet.appendChild(up)
       sheet.appendChild(down)
       sheet.appendChild(el('div', 'sheet-note', T.attachHint))
-    })
+    }, T.attachTitle)
   }
 
   function pickAndUpload(/** @type {any} */ sessionId) {
@@ -2273,7 +2430,7 @@
               sheet.appendChild(it)
             })(files[i])
           }
-        })
+        }, T.download)
       })
       .catch(function (e) { console.error('[wslist]', e); toast(T.downloadFail) })
   }
@@ -2409,7 +2566,7 @@
   function openModelSheet(/** @type {any} */ sessionId) {
     openSheet(function (/** @type {any} */ sheet) {
       renderModelSheet(sheet, sessionId)
-    })
+    }, T.modelPick)
   }
 
   // 模型与推理等级在同一面板里完成：点模型后不关闭，重渲染出该模型的等级。
@@ -2556,7 +2713,7 @@
   var pendingSeq = 0 // fallback eventId for synthetic probe frames
 
   function closeAnswer() {
-    if (answerEl) { answerEl.remove(); answerEl = null; answerId = null }
+    if (answerEl) { modalClose(answerEl); answerEl = null; answerId = null }
   }
 
   function pendingItems() {
@@ -2675,8 +2832,9 @@
     if (!items.length) return
     if (items.length === 1) { gotoBusy(items[0]); return }
     closeAnswer()
-    var mask = el('div', 'mask')
-    var sheet = el('div', 'sheet')
+    var shell = openModalShell({ label: T.pendingList, onClose: closeAnswer })
+    var sheet = shell.content
+    var mask = shell.mask
     sheet.appendChild(el('div', 'sheet-title', T.pendingList))
     sheet.appendChild(el('div', 'sheet-body', T.pendingOpen))
     for (var i = 0; i < items.length; i++) {
@@ -2688,9 +2846,6 @@
         sheet.appendChild(row)
       })(items[i])
     }
-    mask.appendChild(sheet)
-    mask.addEventListener('click', function (/** @type {any} */ ev) { if (ev.target === mask) closeAnswer() })
-    document.body.appendChild(mask)
     answerEl = mask
   }
 
@@ -2702,8 +2857,9 @@
   function showApproval(/** @type {any} */ entry) {
     var req = entry.request || {}
     closeAnswer()
-    var mask = el('div', 'mask')
-    var sheet = el('div', 'sheet')
+    var shell = openModalShell({ label: T.approvalTitle, onClose: closeAnswer })
+    var mask = shell.mask
+    var sheet = shell.content
     sheet.appendChild(el('div', 'sheet-title', T.approvalTitle))
 
     var body = el('div', 'sheet-body ap-body')
@@ -2754,8 +2910,6 @@
     allow.addEventListener('click', function () { submitBusy(entry, 'allowed-once') })
     acts.appendChild(deny); acts.appendChild(allow)
     sheet.appendChild(acts)
-    mask.appendChild(sheet)
-    document.body.appendChild(mask)
     answerEl = mask
     answerId = entry.eventId
 
@@ -2807,8 +2961,9 @@
     closeAnswer()
     /** @type {Object.<string, any>} */
     var picks = {} // question id -> { selected: [], custom: '' }
-    var mask = el('div', 'mask')
-    var sheet = el('div', 'sheet')
+    var shell = openModalShell({ label: T.questionsTitle, onClose: closeAnswer })
+    var mask = shell.mask
+    var sheet = shell.content
     for (var qi = 0; qi < qs.length; qi++) {
       (function (q) {
         picks[q.id] = { selected: [], custom: '' }
@@ -2866,8 +3021,6 @@
     })
     acts.appendChild(later); acts.appendChild(ok)
     sheet.appendChild(acts)
-    mask.appendChild(sheet)
-    document.body.appendChild(mask)
     answerEl = mask
     answerId = entry.eventId
   }

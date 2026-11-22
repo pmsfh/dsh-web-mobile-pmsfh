@@ -23,8 +23,9 @@ official code.
   list, keeping the directory and session records, and its sessions move to
   "Ungrouped"; long-press a session to archive it; creating a session picks the
   workspace through an inline directory browser and a permission level (Read
-  Only / Workspace Write / Full access; only Full access requires a risk
-  confirmation); empty session list and empty workspace groups carry a
+  Only / Workspace Write / Full access; the Full access option carries the
+  risk tone and requires a risk confirmation, and a disabled create button
+  states why); empty session list and empty workspace groups carry a
   "New session" button
 - **Conversations**: streaming output, collapsible reasoning, a notice when
   context is compacted; markdown and code block rendering, stop while
@@ -47,7 +48,11 @@ official code.
   shows the cause and offers retry
 - **Files**: list and download workspace files, read-only
 - **Interface**: Chinese and English follow the browser, light and dark follow
-  the system; the composer rides above the soft keyboard; "Open desktop
+  the system; the composer rides above the soft keyboard; overlays share one
+  focus scheme — the background is not interactive while open, Tab and Esc are
+  bounded, focus returns to where it was on close, bottom sheets carry a top
+  grabber with an explicit close button, and dialogs are named after their
+  panel titles; "Open desktop
   version" at the bottom of the list applies to this browsing session only,
   and a floating "📱" button appears in the corner after switching to return to
   the mobile page; uses the existing DSH login state with guidance when it

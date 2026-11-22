@@ -704,6 +704,62 @@ details.reasoning[open] summary::before { content: '▾ '; }
 .btn-primary:disabled { background: var(--border); color: var(--text3); }
 .btn-ghost { border: 1px solid var(--border); background: transparent; color: var(--text2); }
 
+/* ── approval sheet ───────────────────────────────────────── */
+.ap-reason { color: var(--text); font-size: 15px; margin-bottom: 6px; }
+.ap-tool {
+  color: var(--text3);
+  font-size: 12px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  margin-bottom: 10px;
+}
+.ap-args-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  margin: 2px 0 10px;
+}
+.ap-args-head { display: flex; align-items: center; justify-content: space-between; padding-left: 10px; }
+.ap-args-label { font-size: 12px; color: var(--text2); }
+.ap-copy {
+  min-height: 44px;
+  min-width: 72px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ap-copy:active { opacity: 0.6; }
+.ap-args {
+  margin: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 9px 9px;
+  background: rgba(127, 127, 127, 0.12);
+  color: var(--text);
+  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.ap-args.clamp { max-height: calc(4.5em + 8px); overflow: hidden; }
+.ap-expand {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ap-expand:active { background: var(--accent-weak); }
+.ap-missing { color: var(--danger); font-size: 13px; margin-bottom: 4px; }
+.ap-copy-ta { position: fixed; left: -9999px; top: 0; }
+
 /* ── new-session sheet (workspace + permission) ─────────────── */
 .cs-section {
   font-size: 13px;

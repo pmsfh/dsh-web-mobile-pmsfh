@@ -113,6 +113,14 @@
     modelFail: '模型列表不可用',
     modelPick: '选择模型',
     approvalTitle: '需要审批',
+    apCmd: '命令',
+    apFile: '文件',
+    apCopy: '复制',
+    apCopied: '已复制',
+    apCopyFail: '复制失败',
+    apExpand: '展开',
+    apCollapse: '收起',
+    apMissing: '参数未随审批请求送达，请谨慎允许',
     allow: '允许一次',
     deny: '拒绝',
     answerSend: '提交',
@@ -221,6 +229,14 @@
     modelFail: 'Model list unavailable',
     modelPick: 'Select model',
     approvalTitle: 'Approval required',
+    apCmd: 'Command',
+    apFile: 'File',
+    apCopy: 'Copy',
+    apCopied: 'Copied',
+    apCopyFail: 'Copy failed',
+    apExpand: 'Expand',
+    apCollapse: 'Collapse',
+    apMissing: 'Parameters were not delivered with this approval — allow with care',
     allow: 'Allow once',
     deny: 'Deny',
     answerSend: 'Submit',
@@ -1678,9 +1694,25 @@
     head.addEventListener('click', function () { body.hidden = !body.hidden })
     node.appendChild(head); node.appendChild(body)
     chat.box.appendChild(node)
-    c = { node: node, name: nm, sum: sum, st: stEl, body: body, args: '' }
+    c = { node: node, name: nm, sum: sum, st: stEl, body: body, args: '', tool: '' }
     chat.cards[callId] = c
     return c
+  }
+
+  // Extract the parameter line an approval may show, mirroring the official
+  // client's commandOf: terminal_send reads args.text, others read args.command;
+  // plus one mobile-side extra — a path/file_path line for file-touching tools.
+  /** @param {string} tool @param {string} argsStr @returns {{kind:'cmd'|'file', text:string} | null} */
+  function approvalArgOf(tool, argsStr) {
+    /** @type {any} */
+    var a
+    try { a = JSON.parse(argsStr) } catch (e) { return null }
+    if (!a || typeof a !== 'object') return null
+    var cmd = tool === 'terminal_send' ? a.text : a.command
+    if (typeof cmd === 'string' && cmd) return { kind: 'cmd', text: cmd }
+    if (typeof a.path === 'string' && a.path) return { kind: 'file', text: a.path }
+    if (typeof a.file_path === 'string' && a.file_path) return { kind: 'file', text: a.file_path }
+    return null
   }
 
   function paintToolResult(/** @type {any} */ card, /** @type {any} */ text, /** @type {any} */ isError) {
@@ -1761,6 +1793,7 @@
       case 'tool/call': {
         var card = toolCard(d.callId)
         card.name.textContent = asString(d.name)
+        card.tool = asString(d.name)
         card.args = d.arguments || ''
         card.sum.textContent = argsSummary(d.name, card.args)
         break
@@ -2632,7 +2665,48 @@
     var mask = el('div', 'mask')
     var sheet = el('div', 'sheet')
     sheet.appendChild(el('div', 'sheet-title', T.approvalTitle))
-    sheet.appendChild(el('div', 'sheet-body', asString(req.toolName) + (req.reason ? '\n' + asString(req.reason) : '')))
+
+    var body = el('div', 'sheet-body ap-body')
+    // Presentation copy: localised displayReason first (interface language,
+    // falling back to en — the protocol guarantees an `en` entry), then the
+    // raw reason; both absent leaves title + tool line to carry the meaning.
+    var dr = req.displayReason
+    var reason = dr && typeof dr === 'object'
+      ? asString(dr[zh ? 'zh' : 'en'] || dr.en || '')
+      : ''
+    if (!reason && req.reason) reason = asString(req.reason)
+    if (reason) body.appendChild(el('div', 'ap-reason', reason))
+    body.appendChild(el('div', 'ap-tool', asString(req.toolName)))
+
+    // Correlated parameters: only when the approval carries a callId, look the
+    // tool call up in the live chat (chat.cards is keyed by callId). Absent
+    // card means the parameters never reached this client — say so, and only
+    // then; a callId-less ask or a parameterless tool stays silent.
+    if (req.callId != null && req.callId !== '') {
+      var card = chat && chat.cards[req.callId]
+      if (card) {
+        var arg = approvalArgOf(card.tool, card.args)
+        if (arg) {
+          var argText = arg.text
+          var argIsFile = arg.kind === 'file'
+          var wrap = el('div', 'ap-args-wrap')
+          var head = el('div', 'ap-args-head')
+          head.appendChild(el('span', 'ap-args-label', argIsFile ? T.apFile : T.apCmd))
+          var copy = el('button', 'ap-copy', T.apCopy)
+          copy.setAttribute('type', 'button')
+          copy.addEventListener('click', function () { copyText(argText) })
+          head.appendChild(copy)
+          wrap.appendChild(head)
+          var pre = el('pre', 'ap-args', argText)
+          wrap.appendChild(pre)
+          body.appendChild(wrap)
+        }
+      } else {
+        body.appendChild(el('div', 'ap-missing', T.apMissing))
+      }
+    }
+    sheet.appendChild(body)
+
     var acts = el('div', 'sheet-actions')
     var deny = el('button', 'btn-ghost', T.deny)
     deny.addEventListener('click', function () { submitBusy(entry, 'rejected') })
@@ -2644,6 +2718,48 @@
     document.body.appendChild(mask)
     answerEl = mask
     answerId = entry.eventId
+
+    // Collapse long commands after 3 lines: measure once the pre is laid out,
+    // offer expand/collapse only when it actually overflows.
+    var pre2 = sheet.querySelector('.ap-args')
+    if (pre2) {
+      pre2.classList.add('clamp')
+      if (pre2.scrollHeight > pre2.clientHeight + 1) {
+        var expand = el('button', 'ap-expand', T.apExpand)
+        expand.setAttribute('type', 'button')
+        expand.setAttribute('aria-expanded', 'false')
+        expand.addEventListener('click', function () {
+          var open = pre2.classList.toggle('clamp') === false
+          expand.setAttribute('aria-expanded', open ? 'true' : 'false')
+          expand.textContent = open ? T.apCollapse : T.apExpand
+        })
+        pre2.parentNode.appendChild(expand)
+      }
+    }
+  }
+
+  /** @param {string} text */
+  function copyText(text) {
+    var done = function () { toast(T.apCopied) }
+    var fail = function () { toast(T.apCopyFail) }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text) ? done() : fail() })
+    } else {
+      legacyCopy(text) ? done() : fail()
+    }
+  }
+
+  /** @param {string} text @returns {boolean} */
+  function legacyCopy(text) {
+    try {
+      var ta = el('textarea', 'ap-copy-ta')
+      ta.value = text
+      document.body.appendChild(ta)
+      ta.select()
+      var ok = document.execCommand('copy')
+      ta.remove()
+      return ok
+    } catch (e) { return false }
   }
 
   function showQuestion(/** @type {any} */ entry) {

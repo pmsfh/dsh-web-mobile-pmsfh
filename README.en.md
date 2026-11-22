@@ -33,7 +33,9 @@ official code.
   with the next message through the official conversation attachment channel;
   8 MB per file, removable before sending, not written to the workspace
 - **Approvals**: out-of-scope operations raise an approval card with allow
-  once, deny, later, or a custom command of your own
+  once, deny, later, or a custom command of your own; the card shows the
+  explanation plus the correlated tool call's command or file, with collapse
+  for long content and one-tap copy
 - **Pending requests**: questions and approvals count in the header no matter
   which page you are on; tap to open the conversation and handle it, and "Later"
   keeps the request available when you come back. After the page closes or the

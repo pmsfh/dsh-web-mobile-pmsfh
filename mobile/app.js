@@ -444,6 +444,9 @@
     var label = state === 'on' ? T.connOn : state === 'bad' ? T.connErr : T.connWait
     connEl.setAttribute('aria-label', label)
     connEl.title = label
+    // D1: colour alone was the only signal (8px dot). While connected the dot
+    // stays quiet; the degraded states spell themselves out as a text pill.
+    connEl.textContent = state === 'on' ? '' : label
   }
   function clearDownTimer() {
     if (downTimer) { clearTimeout(downTimer); downTimer = null }
@@ -1637,7 +1640,7 @@
     var body = el('div', 'md')
     node.appendChild(body)
     chat.box.appendChild(node)
-    st = { node: node, body: body, texts: Object.create(null), reasoning: Object.create(null), reasonEl: null }
+    st = { node: node, body: body, texts: Object.create(null), reasoning: Object.create(null), reasonEl: null, raf: 0 }
     chat.steps[key] = st
     return st
   }
@@ -1655,9 +1658,32 @@
     return out.join('')
   }
 
+  // D2: deltas arrive in bursts; coalesce live repaints to one per animation
+  // frame so long streams do not re-parse the whole text (renderMd + innerHTML)
+  // on every delta — O(n²) on mobile otherwise. The final message still
+  // renders once, in finalizeStep.
   function paintLiveStep(/** @type {any} */ st) {
-    // plain text while streaming (markdown lands on the final message event)
-    st.body.textContent = liveText(st)
+    if (st.raf) return // a repaint is already scheduled; it will pick up all buffered deltas
+    st.raf = requestAnimationFrame(function () {
+      st.raf = 0
+      paintLiveStepNow(st)
+    })
+  }
+  function paintLiveStepNow(/** @type {any} */ st) {
+    // Same markdown pipeline as the final message (html:false, validateLink),
+    // so literals like **bold** don't flash raw and get replaced wholesale on
+    // finalize. The raw-text fallback (markdown-it unavailable) keeps
+    // pre-wrap via the .raw class; the markdown path drops it so soft
+    // newlines collapse exactly like the final render.
+    var txt = liveText(st)
+    var html = renderMd(txt)
+    if (html) {
+      st.body.classList.remove('raw')
+      st.body.innerHTML = html
+    } else {
+      st.body.classList.add('raw')
+      st.body.textContent = txt
+    }
     var r = liveReasoning(st)
     if (r) {
       if (!st.reasonEl) {
@@ -1689,11 +1715,15 @@
     var key = stepKey(turn, step)
     var st = chat.steps[key]
     if (!st) st = stepBubble(turn, step, time)
+    // Drop any coalesced repaint still pending, or it would overwrite the
+    // authoritative final render one frame later.
+    if (st.raf) { cancelAnimationFrame(st.raf); st.raf = 0 }
     var text = textOfBlocks(message && message.content)
     var reason = reasoningOfBlocks(message && message.content)
     var html = text ? renderMd(text) : null
     if (html) st.body.innerHTML = html
     else st.body.textContent = text
+    st.body.classList.remove('raw')
     if (reason) {
       if (!st.reasonEl) {
         var det = el('details', 'reasoning')

@@ -115,6 +115,24 @@ html, body {
 .conn.on { background: var(--ok); }
 .conn.wait { background: var(--warn); animation: conn-pulse 1.2s ease-in-out infinite; }
 .conn.bad { background: var(--danger); }
+/* D1: degraded states spell themselves out — text pill instead of a bare
+   8px dot, so colour is not the only signal (same tinted pattern as .err) */
+.conn.wait, .conn.bad {
+  width: auto;
+  height: auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  animation: none;
+}
+.conn.wait { background: rgba(217, 119, 6, 0.12); color: #92400e; }
+.conn.bad { background: rgba(220, 38, 38, 0.1); color: #b91c1c; }
+@media (prefers-color-scheme: dark) {
+  .conn.wait { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+  .conn.bad { background: rgba(248, 113, 113, 0.15); color: #fca5a5; }
+}
 @keyframes conn-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -315,13 +333,15 @@ html, body {
   display: block;
   margin-top: 3px;
   text-align: right;
-  font-size: 10px;
+  /* D4: full-opacity white on --bubble-user measures 5.2:1 (light) and
+     5.9:1 (dark) — the old 10px/opacity .75 sat around 3:1 */
+  font-size: 11px;
   font-weight: 400;
-  opacity: 0.75;
+  opacity: 1;
 }
 
 .msg.assistant.live { opacity: 0.85; }
-.msg.assistant.live .md { white-space: pre-wrap; }
+.msg.assistant.live .md.raw { white-space: pre-wrap; }
 /* Reasoning-only step: keep the fold, drop the empty bubble box. */
 .msg.assistant.bare {
   background: transparent;
@@ -903,8 +923,8 @@ details.reasoning[open] summary::before { content: '▾ '; }
 }
 .q-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .q-opt {
-  min-height: 38px;
-  padding: 6px 14px;
+  min-height: 44px;
+  padding: 10px 16px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--bg);

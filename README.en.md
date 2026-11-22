@@ -52,7 +52,8 @@ official code.
   focus scheme — the background is not interactive while open, Tab and Esc are
   bounded, focus returns to where it was on close, bottom sheets carry a top
   grabber with an explicit close button, and dialogs are named after their
-  panel titles; "Open desktop
+  panel titles; the header connection indicator becomes a text pill while
+  connecting or disconnected; "Open desktop
   version" at the bottom of the list applies to this browsing session only,
   and a floating "📱" button appears in the corner after switching to return to
   the mobile page; uses the existing DSH login state with guidance when it

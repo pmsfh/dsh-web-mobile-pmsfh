@@ -24,11 +24,13 @@ official code.
   "Ungrouped"; long-press a session to archive it; creating a session picks the
   workspace through an inline directory browser and a permission level (Read
   Only / Workspace Write / Full access; only Full access requires a risk
-  confirmation)
+  confirmation); empty session list and empty workspace groups carry a
+  "New session" button
 - **Conversations**: streaming output, collapsible reasoning, a notice when
   context is compacted; markdown and code block rendering, stop while
   generating, queued messages stay visible, paginated history as you scroll up,
-  stick to the bottom with a one-tap return
+  stick to the bottom with a one-tap return; the empty-conversation note sits
+  centered in the message area
 - **Attachments**: pick files on the device, upload for a receipt, and send them
   with the next message through the official conversation attachment channel;
   8 MB per file, removable before sending, not written to the workspace
@@ -41,7 +43,8 @@ official code.
   keeps the request available when you come back. After the page closes or the
   connection drops, DSH re-delivers unhandled requests when the page opens
   again
-- **Models**: switch model and reasoning level within a session
+- **Models**: switch model and reasoning level within a session; a failed load
+  shows the cause and offers retry
 - **Files**: list and download workspace files, read-only
 - **Interface**: Chinese and English follow the browser, light and dark follow
   the system; the composer rides above the soft keyboard; "Open desktop

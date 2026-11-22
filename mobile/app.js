@@ -69,6 +69,8 @@
     untitled: '新会话',
     loading: '加载中…',
     empty: '还没有会话\n点右上角「＋」开始',
+    emptyCta: '新建会话',
+    retry: '重试',
     chatEmpty: '发消息开始对话\n📎 可以传文件给智能体',
     loadFail: '加载失败，点右上角刷新重试',
     desktop: '进入桌面版',
@@ -111,6 +113,7 @@
     noCwd: '该会话没有工作区',
     modelLoading: '模型加载中…',
     modelFail: '模型列表不可用',
+    modelEmpty: '暂无可用模型',
     modelPick: '选择模型',
     approvalTitle: '需要审批',
     apCmd: '命令',
@@ -185,6 +188,8 @@
     untitled: 'New session',
     loading: 'Loading…',
     empty: 'No sessions yet\nTap ＋ to start one',
+    emptyCta: 'New session',
+    retry: 'Retry',
     chatEmpty: 'Send a message to start\n📎 attaches a file for the agent',
     loadFail: 'Load failed — tap refresh to retry',
     desktop: 'Open desktop version',
@@ -227,6 +232,7 @@
     noCwd: 'This session has no workspace',
     modelLoading: 'Loading models…',
     modelFail: 'Model list unavailable',
+    modelEmpty: 'No models available',
     modelPick: 'Select model',
     approvalTitle: 'Approval required',
     apCmd: 'Command',
@@ -1006,6 +1012,12 @@
       var em = el('div', 'empty')
       em.appendChild(el('div', 'big', '💬'))
       em.appendChild(el('div', null, T.empty))
+      // B1: the first screen should offer the primary action, not just point
+      // at the header's ＋ — mirror it with a real button.
+      var emptyBtn = el('button', 'btn-primary empty-cta', T.emptyCta)
+      emptyBtn.setAttribute('type', 'button')
+      emptyBtn.addEventListener('click', function () { openCreateSheet(null, null) })
+      em.appendChild(emptyBtn)
       list.appendChild(em)
     } else {
       // Group by workspace MEMBERSHIP (workspace.list sessionIds) — the same
@@ -1060,6 +1072,13 @@
             // not look lost) — a quiet hint instead of rows. While folded the
             // hint is hidden too (the folded header's count badge is enough).
             box.appendChild(el('div', 'ws-empty-hint', T.wsEmpty))
+            // B1 covers the common first screen too: workspace exists but no
+            // sessions yet — the group hint alone is a dead end without the
+            // primary action.
+            var gCta = el('button', 'btn-primary empty-cta', T.emptyCta)
+            gCta.setAttribute('type', 'button')
+            gCta.addEventListener('click', function () { openCreateSheet(g.ws ? g.ws.workspaceId : null, null) })
+            box.appendChild(gCta)
           }
           for (var j = 0; j < g.items.length; j++) {
             (function (s) {
@@ -1927,8 +1946,9 @@
     // System events (preset/policy/inbox) fold to nothing visible — judge
     // emptiness by rendered messages, not the raw event count.
     if (!chat.box.querySelector('.msg')) {
-      var enote = el('div', 'chatnote empty-note', T.chatEmpty)
-      chat.box.appendChild(enote)
+      // B2: centered via the .empty-note class (auto margins against the
+      // flex-column .chat) instead of pinning near the top (~15%).
+      chat.box.appendChild(el('div', 'chatnote empty-note', T.chatEmpty))
     }
     buildComposer(app, id)
     paintModelSeat()
@@ -2442,7 +2462,10 @@
           }
         }
         if (!any) {
-          sheet.appendChild(el('div', 'sheet-empty', T.modelFail))
+          // Upstream review: a successful response with no models is NOT a
+          // failure — say so plainly and skip the retry (pointless until
+          // the host gets models configured).
+          sheet.appendChild(el('div', 'sheet-empty', T.modelEmpty))
           return
         }
         // Reasoning effort section — only for the CURRENT model route
@@ -2488,11 +2511,28 @@
           sheet.appendChild(effRow)
         }
         sheet.scrollTop = keepTop
-      }).catch(function () {
+      }).catch(function (e) {
         if (!sheetEl) return
-        sheet.textContent = ''
-        sheet.appendChild(el('div', 'sheet-empty', T.modelFail))
+        renderModelError(sheet, sessionId, e)
       })
+  }
+
+  // B3: model sheet failure gets a cause line and a retry action instead of
+  // a bare text dead-end. Re-renders through renderModelSheet so the loading
+  // state shows again while the retry is in flight.
+  /** @param {any} sheet @param {any} sessionId @param {any} err */
+  function renderModelError(sheet, sessionId, err) {
+    sheet.textContent = ''
+    var box = el('div', 'sheet-empty model-err')
+    box.appendChild(el('div', 'model-err-ico', '⚠️'))
+    box.appendChild(el('div', 'model-err-text', T.modelFail))
+    var cause = err && err.message ? err.message : ''
+    if (cause && cause !== 'rpc error') box.appendChild(el('div', 'model-err-cause', cause))
+    var retry = el('button', 'btn-primary model-err-retry', T.retry)
+    retry.setAttribute('type', 'button')
+    retry.addEventListener('click', function () { renderModelSheet(sheet, sessionId) })
+    box.appendChild(retry)
+    sheet.appendChild(box)
   }
 
   // ── approvals / questions（rc.1：$events waterfall）──────────

@@ -248,6 +248,26 @@ html, body {
   line-height: 1.15;
   margin-bottom: 8px;
 }
+/* B1: the empty state carries the primary action itself */
+.empty-cta {
+  display: block;
+  width: 60%;
+  min-height: 44px;
+  margin: 18px auto 0;
+}
+/* B3: model sheet error — cause line + retry, not a text dead-end */
+.model-err { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 0; }
+.model-err-ico { font-size: 28px; }
+.model-err-text { color: var(--text2); font-size: 15px; }
+.model-err-cause {
+  color: var(--text2);
+  font-size: 12px;
+  overflow-wrap: break-word;
+  text-align: center;
+}
+.model-err-retry { display: block; width: 60%; min-height: 44px; margin: 12px auto 0; }
+/* B2: center the empty-conversation note in the (flex column) chat area */
+.empty-note { margin: auto 0; }
 
 /* ── chat view (phase 2: markdown + tool cards + streaming) ── */
 .chat {

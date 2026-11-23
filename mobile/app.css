@@ -983,7 +983,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
      margin computes to 0 and the link stays right under the last row. */
   margin-top: auto;
   text-align: center;
-  color: var(--text3);
-  font-size: 12px;
+  color: var(--text2);
+  font-size: 14px;
   text-decoration: none;
 }

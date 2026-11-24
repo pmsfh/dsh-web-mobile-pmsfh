@@ -153,14 +153,14 @@ html, body {
 /* Keep rows at their natural height inside the flex column, otherwise a
    list taller than the viewport would be squeezed instead of scrolled. */
 .list > * { flex: none; }
-.ws-group { margin-top: 14px; }
+.ws-group { margin-top: 18px; }
 .ws-group.folded .srow { display: none; }
 .ws-head {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 6px;
+  padding: 7px 6px;
   border: none;
   background: transparent;
   text-align: left;
@@ -172,15 +172,17 @@ html, body {
 }
 .ws-chev {
   flex: none;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text3);
   transition: transform .15s ease;
   transform: rotate(90deg); /* expanded: points down */
 }
 .ws-chev.fold { transform: rotate(0deg); } /* collapsed: points right */
 .ws-name {
-  font-size: 14px;
-  color: var(--text3);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  color: var(--text2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

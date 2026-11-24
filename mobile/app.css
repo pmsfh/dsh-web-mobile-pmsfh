@@ -65,7 +65,7 @@ html, body {
 .hd h1 {
   flex: 1;
   min-width: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -179,7 +179,7 @@ html, body {
 }
 .ws-chev.fold { transform: rotate(0deg); } /* collapsed: points right */
 .ws-name {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: .2px;
   color: var(--text2);

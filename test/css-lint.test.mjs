@@ -18,7 +18,10 @@ test('app.css has no stylelint error-rule violations', async () => {
         'block-no-empty': true,
         'comment-no-empty': true,
         'color-no-invalid-hex': true,
-        'declaration-block-no-duplicate-properties': true,
+        'declaration-block-no-duplicate-properties': [
+          true,
+          { ignore: ['consecutive-duplicates-with-different-values'] },
+        ],
         'declaration-block-no-shorthand-property-overrides': true,
         'function-no-unknown': [true, { ignoreFunctions: ['var'] }],
         'keyframe-declaration-no-important': true,

@@ -13,7 +13,7 @@ const mobileDir = path.join(root, 'mobile')
 
 function localRefs() {
   const html = fs.readFileSync(path.join(mobileDir, 'index.html'), 'utf8')
-  return [...html.matchAll(/(?:href|src)="([^"]+)"/g)]
+  return [...html.matchAll(/(?:href|src)=["']([^"']+)["']/g)]
     .map((m) => m[1])
     .filter((u) => u.startsWith(mount))
     .map((u) => u.slice(mount.length))
@@ -21,15 +21,16 @@ function localRefs() {
 
 function diskAssets() {
   const files = []
-  for (const name of fs.readdirSync(mobileDir)) {
-    if (name === 'index.html') continue
-    const full = path.join(mobileDir, name)
-    if (fs.statSync(full).isDirectory()) {
-      for (const sub of fs.readdirSync(full)) files.push(`${name}/${sub}`)
-    } else {
-      files.push(name)
+  const walk = (dir, prefix) => {
+    for (const name of fs.readdirSync(dir)) {
+      if (!prefix && name === 'index.html') continue
+      const full = path.join(dir, name)
+      const rel = prefix ? `${prefix}/${name}` : name
+      if (fs.statSync(full).isDirectory()) walk(full, rel)
+      else files.push(rel)
     }
   }
+  walk(mobileDir, '')
   return files.sort()
 }
 

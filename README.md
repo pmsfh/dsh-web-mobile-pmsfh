@@ -128,7 +128,7 @@ dsh-web-mobile-pmsfh/
 | `/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js` | markdown 渲染 |
 | `/dsh-web-mobile-pmsfh/vendor/markdown-it-cjk-friendly.min.js` | CJK 标点下的 `**` 处理 |
 
-页面文件每次请求从磁盘读取（`no-cache`，内容不变时 304），插件更新并重启 dsh-web 后立即生效；vendor 文件按内容哈希缓存 30 天（`immutable`）。
+页面文件每次请求从磁盘读取（`no-cache`，内容不变时 304），插件更新并重启 dsh-web 后立即生效；vendor 文件固定缓存 30 天（`immutable`），ETag 用内容哈希；升级 vendor 时需改文件名或加版本参数，否则浏览器 30 天内不会取新文件。
 
 ## DSH 接口依赖
 
@@ -155,7 +155,7 @@ dsh-web-mobile-pmsfh/
 
 - **类型**：`types.d.ts` 定义协议与数据形状，源码带 `@ts-check`，
   `tsc --noEmit` 全绿
-- **语法**：`node --check` 覆盖 host 侧与移动页
+- **语法**：`npm test` 编译 app.js 与 vendor，并校验 CSS、词条、资源引用与宿主路由
 - **静态资源**：按内容哈希发 ETag，重复访问返回 304，升级后立即生效
 - **无构建链**：仓库即运行物，没有安装与构建步骤
 
@@ -221,11 +221,11 @@ sudo systemctl restart dsh-web
 本地调试建议使用独立的 `DSH_HOME` 与端口，避免影响生产数据：
 
 ```bash
-DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
+DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3099
 ```
 
 - 无构建链：仓库即运行产物，改动落盘后重启 dsh-web 即生效（页面文件每次请求都从磁盘读）
-- 语法检查 `node --check`，类型检查 `tsc --noEmit`（`@ts-check` 逐文件生效）
+- 检查：`npm run typecheck`（`tsc --noEmit`，`@ts-check` 逐文件生效）与 `npm test`（语法、CSS、词条、资源引用与宿主路由）
 - 调试钩子：页面暴露 `__dshwm.dispatch()`，可向 mux 注入合成帧，用于演练审批与问答弹窗；`__frames` 记录收到的帧类型序列（仅保留最近 200 条），`__dshwm.pending()` 返回当前待处理条目
 - 软键盘适配：`#app` 以 visualViewport 高度为准钉高，配合
   `interactive-widget=resizes-content` meta，保证输入框骑在键盘上方

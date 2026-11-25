@@ -178,7 +178,8 @@ Five resource routes, plus a bare-path 302 redirect:
 
 Page files are read from disk per request (`no-cache`, 304 when unchanged), so
 a plugin update plus a dsh-web restart takes effect immediately; vendor files
-are content-hash cached for 30 days (`immutable`).
+are cached for 30 days (`immutable`) with content-hash ETags; to update one,
+change its filename or add a version parameter.
 
 ## DSH API Dependencies
 
@@ -208,7 +209,8 @@ plugin adapts (see Compatibility).
 
 - **Types**: `types.d.ts` defines the protocol and data shapes; sources use
   `@ts-check`; `tsc --noEmit` is clean
-- **Syntax**: `node --check` covers the host and the mobile page
+- **Syntax**: `npm test` compiles app.js and vendor files and checks CSS,
+  locale keys, asset references and host routes
 - **Assets**: content-hash ETags return 304 on repeat visits and take effect
   right after an upgrade
 - **No build chain**: the repository is the runtime artifact; no install or
@@ -298,13 +300,13 @@ For local debugging, use a separate `DSH_HOME` and port so production data is
 unaffected:
 
 ```bash
-DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3080
+DSH_HOME=~/.dsh-test dsh --profile web --no-open --port 3099
 ```
 
 - No build chain: the repository is the runtime artifact; changes land after a
   dsh-web restart (page files are read from disk per request)
-- Syntax check with `node --check`, type check with `tsc --noEmit`
-  (`@ts-check` applies per file)
+- Checks: `npm run typecheck` (`tsc --noEmit`; `@ts-check` applies per file)
+  and `npm test` (syntax, CSS, locale keys, asset references and host routes)
 - Debug hooks: the page exposes `__dshwm.dispatch()`, which injects synthetic
   mux frames to rehearse approval and question cards; `__frames` records the
   most recent 200 received frame types, and `__dshwm.pending()` returns the

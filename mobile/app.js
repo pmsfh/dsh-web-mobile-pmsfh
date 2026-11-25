@@ -68,7 +68,6 @@
     choosePermFirst: '请先选择权限',
     permFail: '权限设置失败，将使用默认权限',
     createFail: '创建失败',
-    wsListFail: '工作区列表加载失败，可新建工作区或稍后重试',
     faTitle: '确认启用完全权限？',
     faDesc: '启用完全权限后，新会话将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任后续任务时使用。',
     faAck: '我已了解风险，并愿意继续',
@@ -194,7 +193,6 @@
     choosePermFirst: 'Choose a permission first',
     permFail: 'Permission setup failed; session uses the default',
     createFail: 'Failed to create',
-    wsListFail: 'Workspace list unavailable — create a workspace or retry',
     faTitle: 'Enable Full access?',
     faDesc: 'Full access lets new sessions reduce confirmation steps and perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust subsequent tasks.',
     faAck: 'I understand the risks and want to continue',
@@ -1316,16 +1314,13 @@
     // 增量实时），无需再发一次性 RPC。
     /** @type {any} */
     var chosen = { ws: null, perm: keepPerm || null } // ws: payload fragment; perm: preset value
-    buildSheet(state.workspaces, false)
+    buildSheet(state.workspaces)
 
-    function buildSheet(/** @type {any} */ wss, /** @type {any} */ wsFailed) {
+    function buildSheet(/** @type {any} */ wss) {
       openSheet(function (/** @type {any} */ sheet) {
         sheet.appendChild(el('div', 'sheet-title', T.newSession))
 
         sheet.appendChild(el('div', 'cs-section', T.wsSection))
-        if (wsFailed) {
-          sheet.appendChild(el('div', 'cs-note', T.wsListFail))
-        }
         var preselectBtn = null
         var preselectWs = null
         for (var i = 0; i < wss.length; i++) {

@@ -29,6 +29,9 @@
   'use strict'
 
   /** @typedef {import('../types.d.ts').SessionListResult} SessionListResult */
+  /** @typedef {import('../types.d.ts').DirectoryListResult} DirectoryListResult */
+  /** @typedef {import('../types.d.ts').WorkspaceFilesListResult} WorkspaceFilesListResult */
+  /** @typedef {import('../types.d.ts').FileUploadResult} FileUploadResult */
   /** @typedef {import('../types.d.ts').SessionFollowFrame} SessionFollowFrame */
   /** @typedef {import('../types.d.ts').SessionSnapshotFrame} SessionSnapshotFrame */
   /** @typedef {import('../types.d.ts').FollowHeader} FollowHeader */
@@ -957,7 +960,7 @@
     renderListLoading()
     // 工作区数据由 workspace/follow 流喂进 state（baseline+增量，掉线重开重基线）；
     // 会话列表走一元 RPC。工作区流失败只表现为「全在未分组」，列表照出。
-    rpc('session.list', {}).then(function (v) {
+    rpc('session.list', {}).then(function (/** @type {SessionListResult} */ v) {
       if (state.view !== 'list') return // a chat opened mid-flight; never stomp it
       state.sessions = (v && v.items) || []
       state.byId = Object.create(null)
@@ -1438,7 +1441,7 @@
         sheet.textContent = ''
         sheet.appendChild(el('div', 'sheet-title', T.dirTitle))
         sheet.appendChild(el('div', 'sheet-empty', T.loading))
-        rpc('host.listDirectory', path ? { path: path } : {}).then(function (v) {
+        rpc('host.listDirectory', path ? { path: path } : {}).then(function (/** @type {DirectoryListResult} */ v) {
           paintListing(v)
         }).catch(function (e) {
           console.error('[dir]', e)
@@ -2458,7 +2461,7 @@
       fr.onload = function () {
         var b64 = String(fr.result || '').split(',')[1] || ''
         rpc('fileUploads/upload', { agentId: sessionId, request: { data: b64, name: f.name } })
-          .then(function (v) {
+          .then(function (/** @type {FileUploadResult} */ v) {
             if (!v || !v.receiptId) { toast(T.uploadFail); return }
             attachList(sessionId).push({ receiptId: v.receiptId, name: f.name })
             paintAttachChips(sessionId)
@@ -2475,7 +2478,7 @@
 
   function openDownloadSheet(/** @type {any} */ sessionId) {
     rpc('workspaceFiles/list', { workspaceFileScopeId: sessionId, path: '.' })
-      .then(function (v) {
+      .then(function (/** @type {WorkspaceFilesListResult} */ v) {
         var entries = (v && v.entries) || []
         var files = entries.filter(function (/** @type {any} */ e) { return e && e.type === 'file' })
         openSheet(function (/** @type {any} */ sheet) {

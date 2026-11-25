@@ -36,6 +36,12 @@ export interface RpcResponseEnvelope {
 
 export interface SessionSummary {
   sessionId: string
+  cwd?: string
+  running?: boolean
+  blank?: boolean
+  updatedAt?: number
+  origin?: string
+  parentSessionId?: string | null
   projections?: { values?: Record<string, unknown> }
   [key: string]: unknown
 }
@@ -187,31 +193,38 @@ export interface EventsResultArgs {
 export interface DirectoryEntry {
   name: string
   path: string
-  kind?: string
+  hidden?: boolean
   [key: string]: unknown
 }
 
+/** directoryPicker/list — one level of directories under `path`. */
 export interface DirectoryListResult {
   path: string
-  items?: DirectoryEntry[]
+  home?: string
+  crumbs: DirectoryEntry[]
+  entries: DirectoryEntry[]
+  truncated?: boolean
   [key: string]: unknown
 }
 
 export interface FileUploadResult {
   receiptId?: string
+  file?: unknown
   [key: string]: unknown
 }
 
+/** workspaceFiles/list — files under the session-scoped workspace path. */
 export interface WorkspaceFileEntry {
   name: string
-  path?: string
-  kind?: string
+  type: string
   size?: number
   [key: string]: unknown
 }
 
 export interface WorkspaceFilesListResult {
-  items?: WorkspaceFileEntry[]
+  path: string
+  entries: WorkspaceFileEntry[]
+  truncated?: boolean
   [key: string]: unknown
 }
 

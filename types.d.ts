@@ -310,6 +310,7 @@ declare global {
 
 export interface IncomingMessage {
   headers: Record<string, string | string[] | undefined>
+  method?: string
   [key: string]: unknown
 }
 

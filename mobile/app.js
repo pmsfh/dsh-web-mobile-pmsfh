@@ -1775,7 +1775,10 @@
     var a
     try { a = JSON.parse(argsStr) } catch (e) { return '' }
     if (!a || typeof a !== 'object') return ''
-    if (typeof a.command === 'string') return a.command
+    // terminal_send carries its command in `text`, not `command`; mirror the
+    // same rule approvalArgOf uses so terminal cards are not left blank.
+    var cmd = name === 'terminal_send' ? a.text : a.command
+    if (typeof cmd === 'string') return cmd
     if (typeof a.path === 'string') return a.path
     if (typeof a.file_path === 'string') return a.file_path
     if (typeof a.query === 'string') return a.query

@@ -28,6 +28,30 @@ test('localizeHtml writes lang and title without touching the rest', () => {
   assert.match(zh, /<title>会话 · 移动版<\/title>/)
 })
 
+test('localizeHtml replaces single-quoted and unquoted lang values', () => {
+  const single = localizeHtml(
+    "<html lang='zh-CN'><head><title>x</title></head></html>",
+    'en',
+  )
+  assert.match(single, /<html lang="en">/)
+  assert.doesNotMatch(single, /lang='zh-CN'|lang="zh-CN"/)
+
+  const unquoted = localizeHtml(
+    '<html lang=zh-CN><head><title>x</title></head></html>',
+    'en',
+  )
+  assert.match(unquoted, /<html lang="en">/)
+})
+
+test('localizeHtml leaves data-lang alone', () => {
+  const out = localizeHtml(
+    '<html data-lang="zh-CN"><head><title>x</title></head></html>',
+    'en',
+  )
+  assert.match(out, /data-lang="zh-CN"/)
+  assert.match(out, /<html data-lang="zh-CN" lang="en">/)
+})
+
 test('localizeHtml adds lang when the html tag has none', () => {
   const out = localizeHtml('<html><head><title>x</title></head></html>', 'en')
   assert.match(out, /<html lang="en">/)

@@ -590,13 +590,39 @@
   }
 
   // ── 会话 follow 流帧（session/follow）────────────────────────
+  /**
+   * Snapshot frames replace the visible tail window. Live events folded after
+   * the previous snapshot are not part of `records` when their seq sits past
+   * the snapshot cursor; carry them over so a later rebuild (loadOlder) does
+   * not drop messages the user already saw.
+   * @param {any[]} prev
+   * @param {any[]} records
+   * @param {any} cursor
+   * @returns {any[]}
+   */
+  function mergeSnapshotEvents(prev, records, cursor) {
+    var list = records || []
+    var cut = typeof cursor === 'number' ? cursor : 0
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i] && list[i].event
+      if (e && typeof e.seq === 'number' && e.seq > cut) cut = e.seq
+    }
+    /** @type {any[]} */
+    var carried = []
+    for (var j = 0; j < prev.length; j++) {
+      var pe = prev[j] && prev[j].event
+      if (pe && typeof pe.seq === 'number' && pe.seq > cut) carried.push(prev[j])
+    }
+    return carried.length ? list.concat(carried) : list
+  }
+
   /** @param {SessionFollowFrame} v */
   function onFollowFrame(v) {
     if (!v || !chat || !followStreamId) return
     var sid = followStreamId.slice(3)
     if (v.type === 'snapshot') {
       if (state.view !== 'chat' || chat.id !== sid) return
-      chat.events = v.records || []
+      chat.events = mergeSnapshotEvents(chat.events || [], v.records || [], v.cursor)
       chat.cursor = v.cursor
       chat.hasMore = !!v.hasMore
       chat.projections = (v.projections && v.projections.values) || null
@@ -2059,6 +2085,10 @@
     if (!ev || typeof ev.seq !== 'number') return
     if (ev.seq <= chat.maxSeq) return
     chat.maxSeq = ev.seq
+    // Keep the model in sync with the DOM: fullRenderChat() rebuilds from
+    // chat.events, so live frames must land there too (loadOlder otherwise
+    // drops every message received after the snapshot).
+    chat.events.push({ event: ev })
     foldEvent(f)
   })
 

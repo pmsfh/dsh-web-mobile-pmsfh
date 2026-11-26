@@ -96,7 +96,7 @@ function createApp(opts = {}) {
     const body = init.body ? JSON.parse(init.body) : null
     calls.push({ path, body })
     let value = {}
-    if (path.endsWith('/api/session/list')) value = { items: SESSIONS }
+    if (path.endsWith('/api/session/list')) value = { items: opts.sessions || SESSIONS }
     else if (path.endsWith('/api/session/models')) value = { groups: [] }
     const custom = Object.keys(RPC).find((suffix) => path.endsWith(suffix))
     if (custom) {
@@ -138,7 +138,7 @@ function createApp(opts = {}) {
   assert.ok(ws, 'app should open one mux socket')
   ws.open()
   ws.emit('ev', { type: 'ready', clientId: 'client-1' })
-  ws.emit('ws', { type: 'baseline', value: { items: WORKSPACES, archivedSessionIds: ARCHIVED } })
+  ws.emit('ws', { type: 'baseline', value: { items: opts.workspaces || WORKSPACES, archivedSessionIds: ARCHIVED } })
 
   return { dom, window, document: window.document, ws, calls, errors }
 }
@@ -730,11 +730,16 @@ const DIR_LIST = {
 const createCalls = (app) => app.calls.filter((c) => c.path.endsWith('/api/workspace/create'))
 const deleteCalls = (app) => app.calls.filter((c) => c.path.endsWith('/api/workspace/delete'))
 
-async function openFolderPicker(app) {
-  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+async function openNewSheet(app) {
+  await waitFor(() => app.document.querySelector('.srow') || app.document.querySelector('.empty-cta'))
   app.document.querySelector('.hd button[aria-label="New session"]').click()
-  await waitFor(() => app.document.querySelector('.sheet .cs-ws-new'))
-  app.document.querySelector('.sheet .cs-ws-new').click()
+  await waitFor(() => app.document.querySelector('.sheet .sheet-item'))
+}
+
+// 入口选择页 →「新建工作区」→ 目录浏览器 →「使用此目录」→ 待创建面板
+async function openFolderPicker(app) {
+  await openNewSheet(app)
+  ;[...app.document.querySelectorAll('.sheet .sheet-item')].find((b) => b.textContent.includes('New workspace')).click()
   await waitFor(() => app.document.querySelector('.sheet .dir-row'))
   ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Use this folder')).click()
   await waitFor(() => app.document.querySelector('.sheet .cs-ws.active'))
@@ -750,9 +755,9 @@ test('picking a folder only stages the workspace; creating the session materiali
   await openFolderPicker(app)
   assert.equal(createCalls(app).length, 0, 'picking a folder must not write a workspace yet')
   assert.match(app.document.querySelector('.sheet .cs-ws.active').textContent, /ubuntu/)
+  assert.match(app.document.querySelector('.sheet .cs-perm.active').textContent, /Workspace Write/, 'permission defaults to workspace write')
 
-  app.document.querySelector('.sheet .cs-perm').click()
-  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Create session')).click()
+  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Create workspace and session')).click()
   await waitFor(() => app.calls.some((c) => c.path.endsWith('/api/session/create')))
   const wsCall = createCalls(app)[0]
   const sesCall = app.calls.find((c) => c.path.endsWith('/api/session/create'))
@@ -781,8 +786,48 @@ test('a failed session removes the workspace it just created', async (t) => {
   } })
   t.after(() => app.dom.window.close())
   await openFolderPicker(app)
-  app.document.querySelector('.sheet .cs-perm').click()
-  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Create session')).click()
+  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Create workspace and session')).click()
   await waitFor(() => deleteCalls(app).length === 1)
   assert.equal(deleteCalls(app)[0].body.payload.args.request.workspaceId, 'w9')
+})
+
+test('creating a workspace alone writes no session', async (t) => {
+  const app = createApp({ rpc: {
+    '/api/directoryPicker/list': () => DIR_LIST,
+    '/api/workspace/create': () => ({ workspace: { workspaceId: 'w9', path: '/home/ubuntu' } }),
+  } })
+  t.after(() => app.dom.window.close())
+  await openFolderPicker(app)
+  app.document.querySelector('.sheet .cs-create-only').click()
+  await waitFor(() => createCalls(app).length === 1)
+  assert.equal(app.calls.some((c) => c.path.endsWith('/api/session/create')), false)
+  assert.equal(app.document.querySelector('.sheet'), null)
+  assert.deepEqual(app.errors, [])
+})
+
+test('an existing-workspace session never offers workspace creation', async (t) => {
+  const app = createApp({ rpc: { '/api/session/create': () => ({ sessionId: 's9' }) } })
+  t.after(() => app.dom.window.close())
+  await openNewSheet(app)
+  ;[...app.document.querySelectorAll('.sheet .sheet-item')].find((b) => b.textContent.includes('New session')).click()
+  await waitFor(() => app.document.querySelector('.sheet .cs-ws'))
+  assert.equal(app.document.querySelector('.sheet .cs-ws-new'), null, 'no workspace-creation entry in this flow')
+  assert.equal(app.document.querySelectorAll('.sheet .cs-ws').length, 2)
+  app.document.querySelectorAll('.sheet .cs-ws')[0].click()
+  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Create session')).click()
+  await waitFor(() => app.calls.some((c) => c.path.endsWith('/api/session/create')))
+  assert.equal(createCalls(app).length, 0)
+  assert.deepEqual(app.errors, [])
+})
+
+test('with no workspace the only entry is the workspace flow', async (t) => {
+  const app = createApp({ workspaces: [], sessions: [], rpc: { '/api/directoryPicker/list': () => DIR_LIST } })
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelector('.empty-cta'))
+  assert.equal(app.document.querySelector('.empty-cta').textContent, 'New workspace')
+  app.document.querySelector('.empty-cta').click()
+  await waitFor(() => app.document.querySelector('.sheet .dir-row'))
+  assert.equal(app.document.querySelectorAll('.sheet .cs-ws').length, 0)
+  assert.equal(app.document.querySelector('.sheet .cs-ws-new'), null)
+  assert.deepEqual(app.errors, [])
 })

@@ -52,6 +52,14 @@
     title: '会话',
     docTitle: '会话 · 移动版',
     newSession: '新建会话',
+    newSheetTitle: '新建',
+    newWorkspaceTitle: '新建工作区',
+    newWorkspaceHint: '选一个目录，可以只建工作区，或直接开会话',
+    newSessionHint: '在已有工作区里建',
+    createWsOnly: '只创建工作区',
+    createWsAndSession: '创建工作区并开会话',
+    wsCreated: '工作区已创建',
+    wsPendingBadge: '新建',
     wsSection: '工作区',
     ungrouped: '未分组',
     permTitle: '权限',
@@ -193,6 +201,14 @@
     title: 'Sessions',
     docTitle: 'Sessions · Mobile',
     newSession: 'New session',
+    newSheetTitle: 'New',
+    newWorkspaceTitle: 'New workspace',
+    newWorkspaceHint: 'Pick a folder; create the workspace alone or start a session',
+    newSessionHint: 'Pick an existing workspace',
+    createWsOnly: 'Create workspace only',
+    createWsAndSession: 'Create workspace and session',
+    wsCreated: 'Workspace created',
+    wsPendingBadge: 'New',
     wsSection: 'Workspace',
     ungrouped: 'Ungrouped',
     permTitle: 'Permission',
@@ -1339,9 +1355,9 @@
       em.appendChild(el('div', null, T.empty))
       // B1: the first screen should offer the primary action, not just point
       // at the header's ＋ — mirror it with a real button.
-      var emptyBtn = el('button', 'btn-primary empty-cta', T.emptyCta)
+      var emptyBtn = el('button', 'btn-primary empty-cta', state.workspaces.length ? T.emptyCta : T.newWorkspaceTitle)
       emptyBtn.setAttribute('type', 'button')
-      emptyBtn.addEventListener('click', function () { openCreateSheet(null, null) })
+      emptyBtn.addEventListener('click', function () { openNewSheet() })
       em.appendChild(emptyBtn)
       list.appendChild(em)
     } else {
@@ -1402,7 +1418,7 @@
             // primary action.
             var gCta = el('button', 'btn-primary empty-cta', T.emptyCta)
             gCta.setAttribute('type', 'button')
-            gCta.addEventListener('click', function () { openCreateSheet(g.ws ? g.ws.workspaceId : null, null) })
+            gCta.addEventListener('click', function () { openCreateSheet(g.ws ? g.ws.workspaceId : null, null, null, 'session') })
             box.appendChild(gCta)
           }
           for (var j = 0; j < g.items.length; j++) {
@@ -1577,7 +1593,32 @@
   }
 
   function createSession() {
-    openCreateSheet(null, null)
+    openNewSheet()
+  }
+
+  // 新建入口：先选「新建工作区」还是「新建会话」。零工作区时没有可选会话，
+  // 直接进新建工作区流程。
+  function openNewSheet() {
+    if (!state.workspaces.length) { openCreateSheet(null, null, null, 'workspace'); return }
+    openSheet(function (/** @type {any} */ sheet) {
+      sheet.appendChild(el('div', 'sheet-title', T.newSheetTitle))
+      var wsBtn = el('button', 'sheet-item')
+      wsBtn.appendChild(el('div', null, T.newWorkspaceTitle))
+      wsBtn.appendChild(el('div', 'ws-sub', T.newWorkspaceHint))
+      wsBtn.addEventListener('click', function () {
+        closeSheet()
+        openCreateSheet(null, null, null, 'workspace')
+      })
+      sheet.appendChild(wsBtn)
+      var sesBtn = el('button', 'sheet-item')
+      sesBtn.appendChild(el('div', null, T.newSession))
+      sesBtn.appendChild(el('div', 'ws-sub', T.newSessionHint))
+      sesBtn.addEventListener('click', function () {
+        closeSheet()
+        openCreateSheet(null, null, null, 'session')
+      })
+      sheet.appendChild(sesBtn)
+    }, T.newSheetTitle)
   }
 
   // v2.5: sessions MUST belong to a workspace — the "Ungrouped" create option
@@ -1588,23 +1629,34 @@
   // workspace.create, mirroring the official desktop directory browser.
   // preselectWsId/keepPerm carry the user's choices across the round trip
   // through the directory browser (perm would otherwise be lost).
-  /** @param {any} preselectWsId @param {any} keepPerm @param {any} [pendingWs] */
-  function openCreateSheet(/** @type {any} */ preselectWsId, /** @type {any} */ keepPerm, /** @type {any} */ pendingWs) {
+  /**
+   * @param {any} preselectWsId
+   * @param {any} keepPerm
+   * @param {any} [pendingWs]
+   * @param {string} [mode] 'workspace' = 新建工作区流程；默认 'session' = 选已有工作区
+   */
+  function openCreateSheet(/** @type {any} */ preselectWsId, /** @type {any} */ keepPerm, /** @type {any} */ pendingWs, /** @type {any} */ mode) {
     // A session only BELONGS to a workspace when created with workspaceId —
     // passing cwd alone leaves it unaffiliated (renders as "Ungrouped").
     // rc.1: 工作区清单直接读 workspace/follow 流喂的 state（开机即 baseline，
     // 增量实时），无需再发一次性 RPC。
     // pendingWs：目录浏览器选好、尚未落库的目录（{ pendingPath }）。工作区在
     // 「创建会话」确认时才真正创建，取消面板不留空工作区。
+    var kind = mode === 'workspace' ? 'workspace' : 'session'
+    // 权限默认「工作区内修改」：必选项不再强制多点一次，想改再点。
     /** @type {any} */
-    var chosen = { ws: pendingWs ? { pendingPath: pendingWs.pendingPath } : null, perm: keepPerm || null } // ws: payload fragment; perm: preset value
+    var chosen = { ws: pendingWs ? { pendingPath: pendingWs.pendingPath } : null, perm: keepPerm || 'workspace-write' } // ws: payload fragment; perm: preset value
     buildSheet(state.workspaces)
 
     function buildSheet(/** @type {any} */ wss) {
       openSheet(function (/** @type {any} */ sheet) {
-        sheet.appendChild(el('div', 'sheet-title', T.newSession))
-
-        sheet.appendChild(el('div', 'cs-section', T.wsSection))
+        if (kind === 'workspace' && !(chosen.ws && chosen.ws.pendingPath)) {
+          // 新建工作区：先选目录，选完再回这里显示待创建项与权限。
+          renderDirBrowser(sheet)
+          return
+        }
+        sheet.appendChild(el('div', 'sheet-title', kind === 'workspace' ? T.newWorkspaceTitle : T.newSession))
+        if (kind === 'session') sheet.appendChild(el('div', 'cs-section', T.wsSection))
         var preselectBtn = null
         var preselectWs = null
         /** @type {any} */
@@ -1612,28 +1664,25 @@
         if (chosen.ws && chosen.ws.pendingPath) {
           // 待创建项：只显示目录名，点「创建会话」时才落库。
           pendingBtn = el('button', 'sheet-item cs-ws')
-          pendingBtn.appendChild(el('div', null, baseName(chosen.ws.pendingPath)))
+          pendingBtn.appendChild(el('div', null, baseName(chosen.ws.pendingPath) + ' · ' + T.wsPendingBadge))
           pendingBtn.appendChild(el('div', 'ws-sub', chosen.ws.pendingPath))
           pendingBtn.addEventListener('click', function () {
             pickWs(pendingBtn, { pendingPath: chosen.ws.pendingPath }, chosen.ws.pendingPath)
           })
           sheet.appendChild(pendingBtn)
         }
-        for (var i = 0; i < wss.length; i++) {
-          (function (ws) {
-            var b = el('button', 'sheet-item cs-ws')
-            b.appendChild(el('div', null, ws.title || baseName(ws.path)))
-            b.appendChild(el('div', 'ws-sub', ws.path))
-            b.addEventListener('click', function () { pickWs(b, { workspaceId: ws.workspaceId }, ws.path) })
-            sheet.appendChild(b)
-            if (preselectWsId && ws.workspaceId === preselectWsId) { preselectBtn = b; preselectWs = ws }
-          })(wss[i])
+        if (kind === 'session') {
+          for (var i = 0; i < wss.length; i++) {
+            (function (ws) {
+              var b = el('button', 'sheet-item cs-ws')
+              b.appendChild(el('div', null, ws.title || baseName(ws.path)))
+              b.appendChild(el('div', 'ws-sub', ws.path))
+              b.addEventListener('click', function () { pickWs(b, { workspaceId: ws.workspaceId }, ws.path) })
+              sheet.appendChild(b)
+              if (preselectWsId && ws.workspaceId === preselectWsId) { preselectBtn = b; preselectWs = ws }
+            })(wss[i])
+          }
         }
-        var addWs = el('button', 'sheet-item cs-ws-new')
-        addWs.appendChild(el('div', null, T.wsNew))
-        addWs.appendChild(el('div', 'ws-sub', T.wsNewHint))
-        addWs.addEventListener('click', function () { renderDirBrowser(sheet) })
-        sheet.appendChild(addWs)
 
         var permHead = el('div', 'cs-section')
         permHead.appendChild(el('span', null, T.permTitle))
@@ -1653,17 +1702,26 @@
 
         var createBtn = el('button', 'btn-primary cs-create')
         createBtn.disabled = true
-        createBtn.textContent = T.create
+        createBtn.textContent = kind === 'workspace' ? T.createWsAndSession : T.create
         createBtn.addEventListener('click', function () {
           if (!chosen.perm) return
           closeSheet()
           doCreate(chosen)
         })
-        sheet.appendChild(createBtn)
         // C3: state why the create button is disabled instead of leaving a
         // silent grey control; the hint clears as soon as it unlocks.
         var createHint = el('div', 'cs-create-hint', T.createWhy)
         sheet.appendChild(createHint)
+        sheet.appendChild(createBtn)
+        if (kind === 'workspace' && chosen.ws && chosen.ws.pendingPath) {
+          // 允许只建空工作区：不建会话，直接回列表。
+          var onlyBtn = el('button', 'btn-ghost cs-create-only', T.createWsOnly)
+          onlyBtn.addEventListener('click', function () {
+            closeSheet()
+            createWorkspaceOnly(chosen.ws.pendingPath)
+          })
+          sheet.appendChild(onlyBtn)
+        }
         // Auto-select the freshly created workspace AFTER createBtn exists
         // (pickWs touches createBtn via refresh()). A pending directory is
         // preselected the same way but only materializes on create.
@@ -1722,7 +1780,7 @@
           }
           createHint.style.display = createBtn.disabled ? '' : 'none'
         }
-      }, T.newSession)
+      }, kind === 'workspace' ? T.newWorkspaceTitle : T.newSession)
     }
 
     // Directory browser rendered INSIDE the same sheet (no nested mask):
@@ -1744,7 +1802,7 @@
           sheet.appendChild(el('div', 'sheet-empty', T.dirFail))
           var back = el('button', 'btn-ghost cs-create', T.dirBack)
           back.addEventListener('click', function () {
-            openCreateSheet(chosen.ws && chosen.ws.workspaceId, chosen.perm, chosen.ws && chosen.ws.pendingPath ? chosen.ws : null)
+            openCreateSheet(chosen.ws && chosen.ws.workspaceId, chosen.perm, chosen.ws && chosen.ws.pendingPath ? chosen.ws : null, 'workspace')
           })
           sheet.appendChild(back)
         })
@@ -1809,7 +1867,7 @@
         use.addEventListener('click', function () {
           // 只选目录，不落库：回新建会话面板显示待创建项，点「创建会话」时才
           // workspace.create；取消面板不会留下空工作区。
-          openCreateSheet(null, chosen.perm, { pendingPath: v.path })
+          openCreateSheet(null, chosen.perm, { pendingPath: v.path }, 'workspace')
         })
         sheet.appendChild(use)
       }
@@ -1842,6 +1900,16 @@
     actions.appendChild(cancel)
     actions.appendChild(enable)
     box.appendChild(actions)
+  }
+
+  // 只建工作区：不建会话，直接回列表（用户明确要的「空工作区」）。
+  function createWorkspaceOnly(/** @type {string} */ path) {
+    rpc('workspace.create', { path: path }).then(function (r) {
+      var ws = r && r.workspace
+      if (!ws || !ws.workspaceId) { toast(T.wsCreateFail); return }
+      toast(T.wsCreated)
+      if (state.view === 'list') loadList()
+    }).catch(function (e) { console.error('[ws create]', e); toast(T.wsCreateFail) })
   }
 
   function doCreate(/** @type {any} */ chosen) {

@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write
@@ -13,12 +17,14 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+          cache: npm
           registry-url: https://registry.npmjs.org
 
       - name: 标签与版本号核对
@@ -29,5 +35,13 @@ jobs:
             echo "标签 $GITHUB_REF_NAME 与 package.json 的 $expected 不一致"
             exit 1
           fi
+
+      - run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 测试
+        run: npm test
 
       - run: npm publish --access public --provenance

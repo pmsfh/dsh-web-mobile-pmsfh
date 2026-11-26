@@ -337,3 +337,36 @@ test('long press opens the session action sheet', async (t) => {
   assert.ok(actions.some((text) => text.includes('Archive this session')))
   assert.deepEqual(app.errors, [])
 })
+
+test('markdown keeps raw HTML, javascript: and data: links inert', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  await openChat(app)
+
+  const payload = [
+    '**bold** and [ok](https://example.com)',
+    '<img src=x onerror="window.__xss=1">',
+    '[js](javascript:alert(1))',
+    '[data](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)',
+  ].join('\n')
+  emitSnapshot(app, [
+    {
+      event: {
+        seq: 1, type: 'assistant/message', time: Date.now(),
+        data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: payload }] } },
+      },
+    },
+  ])
+
+  await waitFor(() => app.document.querySelector('.msg.assistant .md'))
+  const markdown = app.document.querySelector('.msg.assistant .md')
+  assert.ok(markdown.querySelector('strong'))
+  assert.equal(markdown.querySelector('a[href="https://example.com"]').textContent, 'ok')
+  assert.equal(markdown.querySelectorAll('img').length, 0)
+  assert.equal(markdown.querySelectorAll('a[href^="javascript:"]').length, 0)
+  assert.equal(markdown.querySelectorAll('a[href^="data:"]').length, 0)
+  assert.match(markdown.textContent, /<img src=x/)
+  assert.equal(app.window.__xss, undefined)
+  assert.deepEqual(app.errors, [])
+})

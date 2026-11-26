@@ -17,6 +17,13 @@
   --bubble-user: #2563eb;
   --bubble-user-text: #ffffff;
   --header-h: calc(52px + env(safe-area-inset-top, 0px));
+  /* 字号与字体（账户面板）：正文倍率 + 正文字体栈，app.js 按本机设置覆盖。
+     只有阅读内容引用 --font-scale；页头、按钮、面板等固定区保持裸 px。 */
+  --font-scale: 1;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-serif: 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', STSong, serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+  --font-family: var(--font-sans);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,8 +50,10 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  /* 正文基准 15px：未自带字号的阅读元素（.c-input / .q-custom 等）从这里继承 */
+  font-family: var(--font-family);
+  font-size: calc(15px * var(--font-scale));
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
@@ -179,7 +188,7 @@ html, body {
 }
 .ws-chev.fold { transform: rotate(0deg); } /* collapsed: points right */
 .ws-name {
-  font-size: 17px;
+  font-size: calc(17px * var(--font-scale));
   font-weight: 600;
   letter-spacing: .2px;
   color: var(--text2);
@@ -240,14 +249,14 @@ html, body {
 }
 .srow .body { flex: 1; min-width: 0; }
 .srow .t {
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .srow .m {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   color: var(--text3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -259,7 +268,7 @@ html, body {
   padding: 56px 24px;
   text-align: center;
   color: var(--text3);
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   line-height: 1.9;
   white-space: pre-line;
 }
@@ -313,7 +322,7 @@ html, body {
   max-width: 88%;
   padding: 9px 12px;
   border-radius: 14px;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   overflow-wrap: break-word;
 }
 .msg.user {
@@ -392,13 +401,17 @@ html, body {
 .md ul, .md ol { margin: 6px 0; padding-left: 22px; }
 .md li { margin: 2px 0; }
 .md h1, .md h2, .md h3, .md h4 { margin: 10px 0 6px; line-height: 1.35; }
-.md h1 { font-size: 19px; } .md h2 { font-size: 17px; }
-.md h3 { font-size: 16px; } .md h4 { font-size: 15px; }
+.md h1 { font-size: calc(19px * var(--font-scale)); }
+.md h2 { font-size: calc(17px * var(--font-scale)); }
+.md h3 { font-size: calc(16px * var(--font-scale)); }
+.md h4 { font-size: calc(15px * var(--font-scale)); }
 .md code {
   padding: 1px 5px;
   border-radius: 6px;
   background: var(--accent-weak);
-  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .md pre {
@@ -412,7 +425,7 @@ html, body {
 .md pre code {
   padding: 0;
   background: transparent;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   line-height: 1.5;
   overflow-wrap: normal;
 }
@@ -428,7 +441,7 @@ html, body {
   overflow-x: auto;
   border-collapse: collapse;
   margin: 8px 0;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
 }
 .md th, .md td {
   padding: 5px 10px;
@@ -444,7 +457,7 @@ html, body {
 details.reasoning { margin-bottom: 6px; }
 details.reasoning summary {
   color: var(--text3);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   cursor: pointer;
   list-style: none;
   padding: 2px 0;
@@ -456,7 +469,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   padding: 6px 10px;
   border-left: 3px solid var(--border);
   color: var(--text2);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
@@ -480,7 +493,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   border: 0;
   background: transparent;
   color: var(--text2);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -494,7 +507,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   color: var(--text3);
 }
 .tc-st { flex: none; font-weight: 700; }
@@ -509,7 +522,9 @@ details.reasoning[open] summary::before { content: '▾ '; }
   padding: 8px 10px;
   border-radius: 8px;
   background: rgba(127, 127, 127, 0.12);
-  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: calc(12px * var(--font-scale));
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 240px;
@@ -791,8 +806,184 @@ details.reasoning[open] summary::before { content: '▾ '; }
 .btn-primary:disabled { background: var(--border); color: var(--text3); }
 .btn-ghost { border: 1px solid var(--border); background: transparent; color: var(--text2); }
 
+/* ── font settings sheet（账户面板的二级页）────────────────────
+   面板自身字号固定：本节所有 px 都不乘 --font-scale，免得选档时面板自己
+   跟着变大变小。只有预览正文 .fs-pv-body 随档位，各档右侧的 Aa 以该档
+   正文实际大小显示（.fs-opt[data-scale]），两者都是用来看效果的。 */
+.sheet-item.si-row { display: flex; align-items: center; gap: 8px; }
+.si-label { flex: 1; min-width: 0; }
+.si-value {
+  flex: none;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text3);
+}
+.si-value.is-custom { color: var(--accent); font-weight: 500; }
+.si-chev { flex: none; color: var(--text3); font-size: 18px; }
+/* 二级页顶栏：左返回、中标题；标题绝对定位，不随返回按钮宽度偏移 */
+.sheet-nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  margin: 0 -6px;
+}
+.sheet-back {
+  position: relative;
+  z-index: 1;
+  height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sheet-nav-title {
+  position: absolute;
+  left: 0;
+  right: 44px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  pointer-events: none;
+}
+/* 预览：标题栏与按钮固定，正文随档位 */
+.fs-preview {
+  margin-top: 2px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.fs-pv-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  margin-bottom: 4px;
+}
+.fs-pv-title { font-size: 18px; font-weight: 600; line-height: 1; }
+.fs-pv-menu { font-size: 18px; line-height: 1; }
+.fs-pv-body { font-size: calc(15px * var(--font-scale)); line-height: 1.55; }
+.fs-pv-ft { display: flex; justify-content: flex-end; margin-top: 8px; }
+.fs-pv-btn {
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.fs-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text3);
+}
+.fs-meta b { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 字号：每行一档，右侧 Aa 以该档正文实际大小显示 */
+.fs-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 4px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.fs-opt:active { background: var(--accent-weak); }
+.fs-opt-dot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--text3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fs-opt-dot::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+.fs-opt-name { flex: 1; font-size: 15px; font-weight: 500; }
+.fs-opt-aa { flex: none; width: 34px; text-align: right; color: var(--text2); line-height: 1; }
+.fs-opt-px {
+  flex: none;
+  min-width: 48px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+.fs-opt[data-scale="0.875"] .fs-opt-aa { font-size: calc(15px * 0.875); }
+.fs-opt[data-scale="1"] .fs-opt-aa { font-size: 15px; }
+.fs-opt[data-scale="1.125"] .fs-opt-aa { font-size: calc(15px * 1.125); }
+.fs-opt[data-scale="1.25"] .fs-opt-aa { font-size: calc(15px * 1.25); }
+.fs-opt[data-scale="1.375"] .fs-opt-aa { font-size: calc(15px * 1.375); }
+.fs-opt.on { border-color: var(--accent); background: var(--accent-weak); color: var(--accent); }
+.fs-opt.on .fs-opt-dot { border-color: var(--accent); }
+.fs-opt.on .fs-opt-dot::after { background: var(--accent); }
+.fs-opt.on .fs-opt-aa { color: var(--accent); }
+.fs-opt.on .fs-opt-px { color: var(--accent); }
+/* 字体族：三个胶囊骑在 effort-row / effort-chip 上，Aa 用各自字体栈预览 */
+.fs-chip {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.fs-chip-aa { font-size: 15px; font-weight: 600; line-height: 1; }
+.fs-chip[data-family="serif"] .fs-chip-aa { font-family: var(--font-serif); }
+.fs-chip[data-family="mono"] .fs-chip-aa { font-family: var(--font-mono); }
+.fs-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  min-height: 40px;
+}
+.fs-status {
+  font-size: 12px;
+  color: var(--text3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fs-reset {
+  flex: none;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ── approval sheet ───────────────────────────────────────── */
-.ap-reason { color: var(--text); font-size: 15px; margin-bottom: 6px; }
+.ap-reason { color: var(--text); font-size: calc(15px * var(--font-scale)); margin-bottom: 6px; }
 .ap-tool {
   color: var(--text3);
   font-size: 12px;
@@ -826,7 +1017,9 @@ details.reasoning[open] summary::before { content: '▾ '; }
   border-radius: 0 0 9px 9px;
   background: rgba(127, 127, 127, 0.12);
   color: var(--text);
-  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: calc(12px * var(--font-scale));
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
@@ -886,7 +1079,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
 }
 .cs-confirm-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
 .cs-confirm-desc {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   color: var(--text2);
   line-height: 1.6;
   margin-bottom: 14px;
@@ -921,9 +1114,9 @@ details.reasoning[open] summary::before { content: '▾ '; }
 /* question blocks */
 .q-block { margin-top: 10px; }
 .q-head { font-size: 12px; color: var(--text3); margin-bottom: 2px; }
-.q-text { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+.q-text { font-size: calc(15px * var(--font-scale)); font-weight: 500; margin-bottom: 6px; }
 .q-detail {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   color: var(--text2);
   white-space: pre-wrap;
   margin-bottom: 8px;
@@ -981,7 +1174,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   border-radius: 10px;
   background: rgba(220, 38, 38, 0.1);
   color: var(--danger);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
 }
 .loading { padding: 40px; text-align: center; color: var(--text3); }
 .desktop-link {

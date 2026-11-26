@@ -56,8 +56,12 @@ official code.
   connecting or disconnected; "Open desktop
   version" at the bottom of the list applies to this browsing session only,
   and a floating "📱" button appears in the corner after switching to return to
-  the mobile page; uses the existing DSH login state with guidance when it
-  expires and a sign-out action
+  the mobile page; "Font & size" in the account sheet offers five text sizes
+  (default 15px, largest 20.6px) and three font families (system, serif,
+  monospace) for conversation text, the session list and inputs — the header,
+  buttons and panels keep their size — and the choice is saved on the device;
+  uses the existing DSH login state with guidance when it expires and a
+  sign-out action
 
 ## Quick Start
 

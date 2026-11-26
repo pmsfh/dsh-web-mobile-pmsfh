@@ -173,6 +173,22 @@
     effortDefault: 'Default',
     save: '保存',
     cancel: '取消',
+    // 账户面板「字号与字体」
+    fontSetting: '字号与字体',
+    fontSize: '字号',
+    fontFamily: '字体',
+    fontXs: '小',
+    fontSm: '标准',
+    fontMd: '大',
+    fontLg: '特大',
+    fontXl: '超大',
+    fontSans: '系统',
+    fontSerif: '衬线',
+    fontMono: '等宽',
+    fontPreview: '这段正文会随所选字号变化，用来确认换行与行高。',
+    fontMetaBody: '正文',
+    fontSaved: '已保存到本机',
+    fontReset: '恢复默认',
   } : {
     title: 'Sessions',
     docTitle: 'Sessions · Mobile',
@@ -298,6 +314,21 @@
     effortDefault: 'Default',
     save: 'Save',
     cancel: 'Cancel',
+    fontSetting: 'Font & size',
+    fontSize: 'Text size',
+    fontFamily: 'Font',
+    fontXs: 'Small',
+    fontSm: 'Default',
+    fontMd: 'Large',
+    fontLg: 'Larger',
+    fontXl: 'Largest',
+    fontSans: 'System',
+    fontSerif: 'Serif',
+    fontMono: 'Monospace',
+    fontPreview: 'This preview follows the selected size, so you can check wrapping and line height.',
+    fontMetaBody: 'Body text',
+    fontSaved: 'Saved on this device',
+    fontReset: 'Reset to default',
   }
 
   // ── markdown (vendored markdown-it; raw HTML disabled) ─────
@@ -704,7 +735,7 @@
   }
 
   // ── state ───────────────────────────────────────────────────
-  /** @type {{ sessions: any[], byId: Object.<string, any>, titles: Object.<string, string>, cwds: Object.<string, string>, archived: Object.<string, boolean>, workspaces: Workspace[], memberOf: Object.<string, string>, collapsed: Object.<string, boolean>, view: string, wsReady: boolean, [key: string]: any }} */
+  /** @type {{ sessions: any[], byId: Object.<string, any>, titles: Object.<string, string>, cwds: Object.<string, string>, archived: Object.<string, boolean>, workspaces: Workspace[], memberOf: Object.<string, string>, collapsed: Object.<string, boolean>, view: string, wsReady: boolean, font: { scale: number, family: string }, [key: string]: any }} */
   var state = {
     sessions: [],
     byId: Object.create(null),
@@ -716,6 +747,7 @@
     collapsed: Object.create(null), // group key -> true (folded group)
     view: 'list',
     wsReady: false, // workspace/follow baseline applied (archived ids known)
+    font: { scale: 1, family: 'sans' }, // 正文倍率档位 + 字体族（本机偏好，见 FONT_KEY）
   }
 
   // 多个运行中圆点共用同一个呼吸相位：每次渲染后把 animation-delay
@@ -819,6 +851,72 @@
   }
   loadCollapsed()
 
+  // ── font prefs（账户面板「字号与字体」）──────────────────────
+  // 纯本机偏好：没有服务端设置接口，落 localStorage。正文基准 15px 乘档位
+  // 倍率 = CSS 变量 --font-scale，字体族换 --font-family；app.css 里只有
+  // 阅读内容引用这两个变量，页头、按钮、面板等固定区保持裸 px。读档按白名单
+  // 校验：档位只认五个预设值、字体只认三个枚举，存档被手改或写坏时回默认。
+  var FONT_KEY = 'dsh-web-mobile-pmsfh:font'
+  var FONT_BASE_PX = 15
+  /** @type {{ scale: number }[]} */
+  var FONT_SCALES = [{ scale: 0.875 }, { scale: 1 }, { scale: 1.125 }, { scale: 1.25 }, { scale: 1.375 }]
+  /** @type {{ id: string, stack: string }[]} */
+  var FONT_FAMILIES = [
+    { id: 'sans', stack: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif" },
+    { id: 'serif', stack: "'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', STSong, serif" },
+    { id: 'mono', stack: 'ui-monospace, Menlo, Consolas, monospace' },
+  ]
+  /** @returns {{ scale: number, family: string }} */
+  function fontDefaults() { return { scale: 1, family: 'sans' } }
+  function loadFontPrefs() {
+    var out = fontDefaults()
+    try {
+      var raw = localStorage.getItem(FONT_KEY)
+      if (!raw) return out
+      var v = JSON.parse(raw)
+      if (!v || typeof v !== 'object') return out
+      if (typeof v.scale === 'number') {
+        for (var i = 0; i < FONT_SCALES.length; i++) if (FONT_SCALES[i].scale === v.scale) out.scale = v.scale
+      }
+      for (var j = 0; j < FONT_FAMILIES.length; j++) if (FONT_FAMILIES[j].id === v.family) out.family = v.family
+    } catch (e) {}
+    return out
+  }
+  function saveFontPrefs() {
+    try { localStorage.setItem(FONT_KEY, JSON.stringify(state.font)) } catch (e) {}
+  }
+  // 只改 CSS 变量，不动 DOM：所有缩放区选择器都是 calc(Npx * var(--font-scale))。
+  function applyFontPrefs() {
+    var rootStyle = document.documentElement.style
+    rootStyle.setProperty('--font-scale', String(state.font.scale))
+    rootStyle.setProperty('--font-family', fontFamilyById(state.font.family).stack)
+  }
+  /** @param {string} id */
+  function fontFamilyById(id) {
+    for (var i = 0; i < FONT_FAMILIES.length; i++) if (FONT_FAMILIES[i].id === id) return FONT_FAMILIES[i]
+    return FONT_FAMILIES[0]
+  }
+  // 词条用点访问而不过 T[key]：test/i18n-keys 靠静态用点对账两套词典。
+  /** @param {number} v */
+  function fontScaleLabel(v) {
+    return v === 0.875 ? T.fontXs : v === 1 ? T.fontSm : v === 1.125 ? T.fontMd : v === 1.25 ? T.fontLg : T.fontXl
+  }
+  /** @param {string} id */
+  function fontFamilyLabel(id) {
+    return id === 'serif' ? T.fontSerif : id === 'mono' ? T.fontMono : T.fontSans
+  }
+  // 「大 · 16.9px」；字体非系统时追加「· 衬线」
+  function fontPrefLabel() {
+    var label = fontScaleLabel(state.font.scale) + ' · ' + (FONT_BASE_PX * state.font.scale).toFixed(1) + 'px'
+    if (state.font.family !== 'sans') label += ' · ' + fontFamilyLabel(state.font.family)
+    return label
+  }
+  function fontIsCustom() {
+    return state.font.scale !== 1 || state.font.family !== 'sans'
+  }
+  state.font = loadFontPrefs()
+  applyFontPrefs()
+
   // ── shared header ───────────────────────────────────────────
   /** @param {string} title @param {any} [opts] @returns {any} */
   function renderHead(title, opts) {
@@ -885,21 +983,178 @@
       .then(function (v) { if (v && v.authenticated === false) gotoLogin() })
       .catch(function () {})
   }
+  // 账户面板：标题 + 「字号与字体」（二级页入口，右侧显示当前档位）+ 「退出登录」。
   function openAccountSheet() {
-    openSheet(function (/** @type {any} */ sheet) {
-      sheet.appendChild(el('div', 'sheet-title', T.account))
-      var out = el('button', 'sheet-item', T.logout)
-      out.addEventListener('click', function () {
-        closeSheet()
-        // gate 的 /auth/logout 只接受 POST：用原生 form 提交，零 JS 依赖。
-        var f = document.createElement('form')
-        f.method = 'POST'
-        f.action = '/auth/logout?next=' + encodeURIComponent('/dsh-web-mobile-pmsfh/')
-        document.body.appendChild(f)
-        f.submit()
-      })
-      sheet.appendChild(out)
-    }, T.account)
+    openSheet(function (/** @type {any} */ sheet) { renderAccountSheet(sheet) }, T.account)
+  }
+  /** @param {any} sheet */
+  function renderAccountSheet(sheet) {
+    sheet.textContent = ''
+    retargetSheet(sheet, T.account)
+    sheet.appendChild(el('div', 'sheet-title', T.account))
+    var font = el('button', 'sheet-item si-row')
+    font.setAttribute('type', 'button')
+    font.appendChild(el('span', 'si-label', T.fontSetting))
+    font.appendChild(el('span', 'si-value' + (fontIsCustom() ? ' is-custom' : ''), fontPrefLabel()))
+    var chev = el('span', 'si-chev', '›')
+    chev.setAttribute('aria-hidden', 'true')
+    font.appendChild(chev)
+    font.addEventListener('click', function () { renderFontSheet(sheet) })
+    sheet.appendChild(font)
+    var out = el('button', 'sheet-item danger', T.logout)
+    out.addEventListener('click', function () {
+      closeSheet()
+      // gate 的 /auth/logout 只接受 POST：用原生 form 提交，零 JS 依赖。
+      var f = document.createElement('form')
+      f.method = 'POST'
+      f.action = '/auth/logout?next=' + encodeURIComponent('/dsh-web-mobile-pmsfh/')
+      document.body.appendChild(f)
+      f.submit()
+    })
+    sheet.appendChild(out)
+  }
+  // 原地切换子页（账户 ⇄ 字号与字体）：对话框的可访问名称挂在 .sheet 壳上，
+  // 跟着内容换；焦点挪回壳上，读屏会重新播报面板名。
+  /** @param {any} sheet @param {string} label */
+  function retargetSheet(sheet, label) {
+    var box = sheet.parentNode
+    if (!box) return
+    box.setAttribute('aria-label', label)
+    try { box.focus({ preventScroll: true }) } catch (/** @type {any} */ e) { box.focus() }
+  }
+  // 字号与字体：账户面板的二级页，复用同一面板壳原地重渲染（模型面板同款）。
+  // 选中即生效并落盘，面板不关，方便对着预览多试几档；面板自身字号固定。
+  /** @param {any} sheet */
+  function renderFontSheet(sheet) {
+    sheet.textContent = ''
+    sheet.scrollTop = 0
+    retargetSheet(sheet, T.fontSetting)
+
+    var nav = el('div', 'sheet-nav')
+    var back = el('button', 'sheet-back', '‹ ' + T.account)
+    back.setAttribute('type', 'button')
+    back.addEventListener('click', function () { renderAccountSheet(sheet) })
+    nav.appendChild(back)
+    nav.appendChild(el('div', 'sheet-nav-title', T.fontSetting))
+    sheet.appendChild(nav)
+
+    // 预览：标题栏与按钮固定，正文随档位（纯装饰，读屏跳过）
+    var pv = el('div', 'fs-preview')
+    pv.setAttribute('aria-hidden', 'true')
+    var pvHd = el('div', 'fs-pv-hd')
+    pvHd.appendChild(el('span', 'fs-pv-title', T.title))
+    pvHd.appendChild(el('span', 'fs-pv-menu', '⋯'))
+    pv.appendChild(pvHd)
+    pv.appendChild(el('div', 'fs-pv-body', T.fontPreview))
+    var pvFt = el('div', 'fs-pv-ft')
+    pvFt.appendChild(el('span', 'fs-pv-btn', T.send))
+    pv.appendChild(pvFt)
+    sheet.appendChild(pv)
+
+    var meta = el('div', 'fs-meta')
+    meta.appendChild(document.createTextNode(T.fontMetaBody + ' '))
+    meta.appendChild(el('b', null, ''))
+    sheet.appendChild(meta)
+
+    sheet.appendChild(el('div', 'sheet-sec', T.fontSize))
+    var opts = el('div', null)
+    opts.setAttribute('role', 'radiogroup')
+    opts.setAttribute('aria-label', T.fontSize)
+    for (var i = 0; i < FONT_SCALES.length; i++) {
+      (function (s) {
+        var b = el('button', 'fs-opt')
+        b.setAttribute('type', 'button')
+        b.setAttribute('role', 'radio')
+        b.setAttribute('data-scale', String(s.scale))
+        var dot = el('span', 'fs-opt-dot')
+        dot.setAttribute('aria-hidden', 'true')
+        b.appendChild(dot)
+        b.appendChild(el('span', 'fs-opt-name', fontScaleLabel(s.scale)))
+        var aa = el('span', 'fs-opt-aa', 'Aa')
+        aa.setAttribute('aria-hidden', 'true')
+        b.appendChild(aa)
+        b.appendChild(el('span', 'fs-opt-px', (FONT_BASE_PX * s.scale).toFixed(1) + 'px'))
+        b.addEventListener('click', function () { setFontScale(s.scale, sheet) })
+        opts.appendChild(b)
+      })(FONT_SCALES[i])
+    }
+    sheet.appendChild(opts)
+
+    sheet.appendChild(el('div', 'sheet-sec', T.fontFamily))
+    var chips = el('div', 'effort-row')
+    chips.setAttribute('role', 'radiogroup')
+    chips.setAttribute('aria-label', T.fontFamily)
+    for (var j = 0; j < FONT_FAMILIES.length; j++) {
+      (function (f) {
+        var b = el('button', 'effort-chip fs-chip')
+        b.setAttribute('type', 'button')
+        b.setAttribute('role', 'radio')
+        b.setAttribute('data-family', f.id)
+        var aa = el('span', 'fs-chip-aa', 'Aa')
+        aa.setAttribute('aria-hidden', 'true')
+        b.appendChild(aa)
+        b.appendChild(el('span', 'fs-chip-name', fontFamilyLabel(f.id)))
+        b.addEventListener('click', function () { setFontFamily(f.id, sheet) })
+        chips.appendChild(b)
+      })(FONT_FAMILIES[j])
+    }
+    sheet.appendChild(chips)
+
+    var foot = el('div', 'fs-foot')
+    var status = el('span', 'fs-status')
+    status.setAttribute('role', 'status')
+    var reset = el('button', 'fs-reset', T.fontReset)
+    reset.setAttribute('type', 'button')
+    reset.addEventListener('click', function () { resetFontPrefs(sheet) })
+    foot.appendChild(status)
+    foot.appendChild(reset)
+    sheet.appendChild(foot)
+    syncFontSheet(sheet)
+  }
+  // 选中态、读数与保存状态随当前偏好同步（选档 / 换字体 / 恢复默认后调用）。
+  /** @param {any} sheet */
+  function syncFontSheet(sheet) {
+    if (!sheet.isConnected) return
+    var opts = sheet.querySelectorAll('.fs-opt')
+    for (var i = 0; i < opts.length; i++) {
+      var on = Number(opts[i].getAttribute('data-scale')) === state.font.scale
+      opts[i].classList.toggle('on', on)
+      opts[i].setAttribute('aria-checked', on ? 'true' : 'false')
+    }
+    var chips = sheet.querySelectorAll('.fs-chip')
+    for (var j = 0; j < chips.length; j++) {
+      var on2 = chips[j].getAttribute('data-family') === state.font.family
+      chips[j].classList.toggle('on', on2)
+      chips[j].setAttribute('aria-checked', on2 ? 'true' : 'false')
+    }
+    var px = sheet.querySelector('.fs-meta b')
+    if (px) px.textContent = (FONT_BASE_PX * state.font.scale).toFixed(1) + 'px'
+    var st = sheet.querySelector('.fs-status')
+    if (st) st.textContent = T.fontSaved + ' · ' + fontPrefLabel()
+  }
+  /** @param {number} v @param {any} sheet */
+  function setFontScale(v, sheet) {
+    if (state.font.scale === v) return // 已是当前档：不重写存档
+    state.font.scale = v
+    commitFontPrefs(sheet)
+  }
+  /** @param {string} id @param {any} sheet */
+  function setFontFamily(id, sheet) {
+    if (state.font.family === id) return
+    state.font.family = id
+    commitFontPrefs(sheet)
+  }
+  /** @param {any} sheet */
+  function resetFontPrefs(sheet) {
+    state.font = fontDefaults()
+    commitFontPrefs(sheet)
+  }
+  // 改动生效（CSS 变量）+ 落盘 + 刷新面板选中态，三处写入口共用。
+  /** @param {any} sheet */
+  function commitFontPrefs(sheet) {
+    applyFontPrefs()
+    saveFontPrefs()
+    syncFontSheet(sheet)
   }
 
   // Header icons are inline SVG, not text glyphs: the visible ink of '⟳' and

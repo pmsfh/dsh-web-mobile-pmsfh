@@ -69,7 +69,8 @@ const WORKSPACES = [
 ]
 const ARCHIVED = ['s5']
 
-function createApp() {
+// opts.storage：app.js 跑之前先写进 localStorage 的键值（测本机偏好的读档路径）。
+function createApp(opts = {}) {
   const errors = []
   const virtualConsole = new VirtualConsole()
   virtualConsole.on('jsdomError', (error) => errors.push(error))
@@ -101,6 +102,7 @@ function createApp() {
   }
   const WS = makeWebSocketClass()
   window.WebSocket = WS
+  for (const [key, value] of Object.entries(opts.storage || {})) window.localStorage.setItem(key, value)
   const context = dom.getInternalVMContext()
   vm.runInContext(mdSource, context, { filename: mdPath })
   vm.runInContext(cjkSource, context, { filename: cjkPath })
@@ -374,5 +376,166 @@ test('markdown keeps raw HTML, javascript: and data: links inert', async (t) => 
   assert.equal(markdown.querySelectorAll('a[href^="data:"]').length, 0)
   assert.match(markdown.textContent, /<img src=x/)
   assert.equal(app.window.__xss, undefined)
+  assert.deepEqual(app.errors, [])
+})
+
+// ── 字号与字体（账户面板二级页）────────────────────────────────
+// 界面语言跟随 navigator.language，jsdom 下是 en-US，断言用英文词条。
+const FONT_KEY = 'dsh-web-mobile-pmsfh:font'
+const cssVar = (app, name) => app.document.documentElement.style.getPropertyValue(name)
+
+async function openFontPanel(app) {
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  app.document.querySelector('.hd button[aria-label="Account"]').click()
+  await waitFor(() => app.document.querySelector('.sheet .si-row'))
+  app.document.querySelector('.sheet .si-row').click()
+  await waitFor(() => app.document.querySelectorAll('.sheet .fs-opt').length === 5)
+  return app.document.querySelector('.sheet')
+}
+
+test('account sheet lists the font entry above sign-out and re-renders in place', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  app.document.querySelector('.hd button[aria-label="Account"]').click()
+  await waitFor(() => app.document.querySelector('.sheet .si-row'))
+
+  const sheet = app.document.querySelector('.sheet')
+  assert.equal(sheet.getAttribute('aria-label'), 'Account')
+  const rows = [...sheet.querySelectorAll('.sheet-item')]
+  assert.equal(rows.length, 2)
+  assert.ok(rows[0].classList.contains('si-row'), 'font entry comes first')
+  assert.equal(rows[0].querySelector('.si-label').textContent, 'Font & size')
+  assert.equal(rows[1].textContent, 'Sign out')
+  assert.equal(rows[0].querySelector('.si-value').textContent, 'Default · 15.0px')
+  assert.equal(rows[0].querySelector('.si-value.is-custom'), null)
+  assert.equal(cssVar(app, '--font-scale'), '1')
+
+  rows[0].click()
+  await waitFor(() => sheet.querySelectorAll('.fs-opt').length === 5)
+  assert.equal(app.document.querySelectorAll('.sheet').length, 1, 'same shell — no second dialog')
+  assert.equal(sheet.getAttribute('aria-label'), 'Font & size')
+  assert.equal(app.document.activeElement, sheet, 'focus lands on the re-labelled dialog')
+  assert.equal(sheet.querySelector('.sheet-nav-title').textContent, 'Font & size')
+  assert.equal(sheet.querySelector('.sheet-back').textContent, '‹ Account')
+  assert.deepEqual(
+    [...sheet.querySelectorAll('.fs-opt')].map((node) => [
+      node.getAttribute('data-scale'), node.getAttribute('role'), node.getAttribute('aria-checked'),
+      node.querySelector('.fs-opt-name').textContent, node.querySelector('.fs-opt-px').textContent,
+    ]),
+    [
+      ['0.875', 'radio', 'false', 'Small', '13.1px'],
+      ['1', 'radio', 'true', 'Default', '15.0px'],
+      ['1.125', 'radio', 'false', 'Large', '16.9px'],
+      ['1.25', 'radio', 'false', 'Larger', '18.8px'],
+      ['1.375', 'radio', 'false', 'Largest', '20.6px'],
+    ],
+  )
+  assert.deepEqual(
+    [...sheet.querySelectorAll('.fs-chip')].map((node) => [
+      node.getAttribute('data-family'), node.getAttribute('aria-checked'), node.textContent,
+    ]),
+    [['sans', 'true', 'AaSystem'], ['serif', 'false', 'AaSerif'], ['mono', 'false', 'AaMonospace']],
+  )
+  assert.equal(sheet.querySelector('.fs-meta b').textContent, '15.0px')
+  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Default · 15.0px')
+
+  // Re-picking the current level is a no-op: nothing is written until a real change.
+  sheet.querySelector('.fs-opt[data-scale="1"]').click()
+  sheet.querySelector('.fs-chip[data-family="sans"]').click()
+  assert.equal(app.window.localStorage.getItem(FONT_KEY), null)
+
+  sheet.querySelector('.sheet-back').click()
+  await waitFor(() => app.document.querySelector('.sheet .si-row'))
+  assert.equal(app.document.querySelectorAll('.fs-opt').length, 0)
+  assert.equal(sheet.getAttribute('aria-label'), 'Account')
+  assert.deepEqual(app.errors, [])
+})
+
+test('picking a size or family applies at once, keeps the panel open and persists', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  const sheet = await openFontPanel(app)
+
+  sheet.querySelector('.fs-opt[data-scale="1.125"]').click()
+  assert.equal(cssVar(app, '--font-scale'), '1.125')
+  assert.equal(app.window.localStorage.getItem(FONT_KEY), '{"scale":1.125,"family":"sans"}')
+  assert.equal(app.document.querySelector('.sheet'), sheet, 'panel stays open for preview')
+  assert.equal(app.document.getElementById('app').inert, true)
+  assert.equal(sheet.querySelectorAll('.fs-opt.on').length, 1)
+  assert.equal(sheet.querySelector('.fs-opt.on').getAttribute('data-scale'), '1.125')
+  assert.equal(sheet.querySelector('.fs-opt[data-scale="1"]').getAttribute('aria-checked'), 'false')
+  assert.equal(sheet.querySelector('.fs-meta b').textContent, '16.9px')
+  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Large · 16.9px')
+
+  sheet.querySelector('.fs-chip[data-family="serif"]').click()
+  assert.match(cssVar(app, '--font-family'), /Songti SC/)
+  assert.equal(app.window.localStorage.getItem(FONT_KEY), '{"scale":1.125,"family":"serif"}')
+  assert.equal(sheet.querySelectorAll('.fs-chip.on').length, 1)
+  assert.equal(sheet.querySelector('.fs-chip.on').getAttribute('data-family'), 'serif')
+  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Large · 16.9px · Serif')
+
+  // Back on the account page the entry row mirrors the new setting.
+  sheet.querySelector('.sheet-back').click()
+  const value = app.document.querySelector('.sheet .si-value')
+  assert.equal(value.textContent, 'Large · 16.9px · Serif')
+  assert.ok(value.classList.contains('is-custom'))
+
+  app.document.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await waitFor(() => !app.document.querySelector('.sheet'))
+  assert.equal(cssVar(app, '--font-scale'), '1.125', 'closing the panel keeps the setting')
+  assert.deepEqual(app.errors, [])
+})
+
+test('saved font prefs apply at boot; anything outside the whitelist falls back to defaults', async (t) => {
+  const good = createApp({ storage: { [FONT_KEY]: '{"scale":1.25,"family":"mono"}' } })
+  t.after(() => good.dom.window.close())
+  assert.equal(cssVar(good, '--font-scale'), '1.25', 'applied while app.js boots')
+  assert.match(cssVar(good, '--font-family'), /ui-monospace/)
+  const sheet = await openFontPanel(good)
+  assert.equal(sheet.querySelector('.fs-opt.on').getAttribute('data-scale'), '1.25')
+  assert.equal(sheet.querySelector('.fs-chip.on').getAttribute('data-family'), 'mono')
+  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Larger · 18.8px · Monospace')
+  assert.deepEqual(good.errors, [])
+
+  // [stored value, expected account-row label]: scale must be one of the five preset
+  // numbers, family one of the three ids; each field falls back on its own.
+  const dirty = [
+    ['{"scale":1.07,"family":"comic"}', 'Default · 15.0px'],
+    ['{"scale":"1.25","family":"serif"}', 'Default · 15.0px · Serif'],
+    ['{"scale":1.25,"family":"comic"}', 'Larger · 18.8px'],
+    ['{not json', 'Default · 15.0px'],
+    ['[]', 'Default · 15.0px'],
+    ['null', 'Default · 15.0px'],
+  ]
+  for (const [raw, label] of dirty) {
+    const app = createApp({ storage: { [FONT_KEY]: raw } })
+    t.after(() => app.dom.window.close())
+    await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+    app.document.querySelector('.hd button[aria-label="Account"]').click()
+    await waitFor(() => app.document.querySelector('.sheet .si-value'))
+    assert.equal(app.document.querySelector('.sheet .si-value').textContent, label, raw)
+    assert.match(cssVar(app, '--font-family'), label.endsWith('Serif') ? /Songti SC/ : /-apple-system/, raw)
+    assert.equal(app.window.localStorage.getItem(FONT_KEY), raw, 'boot never rewrites the stored value')
+    assert.deepEqual(app.errors, [])
+  }
+})
+
+test('reset returns to defaults, writes them back and keeps the panel open', async (t) => {
+  const app = createApp({ storage: { [FONT_KEY]: '{"scale":1.375,"family":"serif"}' } })
+  t.after(() => app.dom.window.close())
+  const sheet = await openFontPanel(app)
+  assert.equal(sheet.querySelector('.fs-opt.on').getAttribute('data-scale'), '1.375')
+
+  sheet.querySelector('.fs-reset').click()
+  assert.equal(cssVar(app, '--font-scale'), '1')
+  assert.match(cssVar(app, '--font-family'), /-apple-system/)
+  assert.equal(app.window.localStorage.getItem(FONT_KEY), '{"scale":1,"family":"sans"}')
+  assert.equal(app.document.querySelector('.sheet'), sheet)
+  assert.equal(sheet.querySelector('.fs-opt.on').getAttribute('data-scale'), '1')
+  assert.equal(sheet.querySelectorAll('.fs-opt[aria-checked="true"]').length, 1)
+  assert.equal(sheet.querySelector('.fs-chip.on').getAttribute('data-family'), 'sans')
+  assert.equal(sheet.querySelector('.fs-meta b').textContent, '15.0px')
+  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Default · 15.0px')
   assert.deepEqual(app.errors, [])
 })

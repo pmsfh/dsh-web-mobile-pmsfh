@@ -89,6 +89,8 @@ function createApp(opts = {}) {
   window.addEventListener('unhandledrejection', (event) => errors.push(`rejection:${String(event.reason)}`))
 
   const calls = []
+  // opts.rpc：按路径后缀给 RPC 返回自定义 value；返回 { __error } 则模拟业务错误。
+  const RPC = opts.rpc || {}
   window.fetch = async (url, init = {}) => {
     const path = String(url)
     const body = init.body ? JSON.parse(init.body) : null
@@ -96,6 +98,19 @@ function createApp(opts = {}) {
     let value = {}
     if (path.endsWith('/api/session/list')) value = { items: SESSIONS }
     else if (path.endsWith('/api/session/models')) value = { groups: [] }
+    const custom = Object.keys(RPC).find((suffix) => path.endsWith(suffix))
+    if (custom) {
+      const out = RPC[custom](body)
+      if (out && out.__error) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => null },
+          json: async () => ({ result: { ok: false, error: { message: out.__error } } }),
+        }
+      }
+      value = out
+    }
     return {
       ok: true,
       status: 200,
@@ -703,4 +718,71 @@ test('the base text size lives in the stylesheet alone; readouts and rendering f
   assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Large · 18.0px')
   assert.equal(app.window.getComputedStyle(app.document.body).fontSize, '18px')
   assert.deepEqual(app.errors, [])
+})
+
+// ── 新建工作区：选目录只是暂存，确认建会话时才落库 ──────────────
+const DIR_LIST = {
+  path: '/home/ubuntu',
+  crumbs: [{ name: 'home', path: '/home' }],
+  entries: [{ name: 'proj', path: '/home/ubuntu/proj', hidden: false }],
+  truncated: false,
+}
+const createCalls = (app) => app.calls.filter((c) => c.path.endsWith('/api/workspace/create'))
+const deleteCalls = (app) => app.calls.filter((c) => c.path.endsWith('/api/workspace/delete'))
+
+async function openFolderPicker(app) {
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  app.document.querySelector('.hd button[aria-label="New session"]').click()
+  await waitFor(() => app.document.querySelector('.sheet .cs-ws-new'))
+  app.document.querySelector('.sheet .cs-ws-new').click()
+  await waitFor(() => app.document.querySelector('.sheet .dir-row'))
+  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Use this folder')).click()
+  await waitFor(() => app.document.querySelector('.sheet .cs-ws.active'))
+}
+
+test('picking a folder only stages the workspace; creating the session materializes it', async (t) => {
+  const app = createApp({ rpc: {
+    '/api/directoryPicker/list': () => DIR_LIST,
+    '/api/workspace/create': () => ({ workspace: { workspaceId: 'w9', path: '/home/ubuntu', title: 'ubuntu' } }),
+    '/api/session/create': () => ({ sessionId: 's9' }),
+  } })
+  t.after(() => app.dom.window.close())
+  await openFolderPicker(app)
+  assert.equal(createCalls(app).length, 0, 'picking a folder must not write a workspace yet')
+  assert.match(app.document.querySelector('.sheet .cs-ws.active').textContent, /ubuntu/)
+
+  app.document.querySelector('.sheet .cs-perm').click()
+  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Create session')).click()
+  await waitFor(() => app.calls.some((c) => c.path.endsWith('/api/session/create')))
+  const wsCall = createCalls(app)[0]
+  const sesCall = app.calls.find((c) => c.path.endsWith('/api/session/create'))
+  assert.equal(wsCall.body.payload.args.request.path, '/home/ubuntu')
+  assert.equal(sesCall.body.payload.args.request.workspaceId, 'w9')
+  assert.ok(app.calls.indexOf(wsCall) < app.calls.indexOf(sesCall), 'workspace is created before the session')
+  assert.deepEqual(app.errors, [])
+})
+
+test('leaving the create sheet after picking a folder leaves nothing behind', async (t) => {
+  const app = createApp({ rpc: { '/api/directoryPicker/list': () => DIR_LIST } })
+  t.after(() => app.dom.window.close())
+  await openFolderPicker(app)
+  app.document.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await waitFor(() => !app.document.querySelector('.sheet'))
+  assert.equal(createCalls(app).length, 0)
+  assert.equal(deleteCalls(app).length, 0)
+  assert.deepEqual(app.errors, [])
+})
+
+test('a failed session removes the workspace it just created', async (t) => {
+  const app = createApp({ rpc: {
+    '/api/directoryPicker/list': () => DIR_LIST,
+    '/api/workspace/create': () => ({ workspace: { workspaceId: 'w9', path: '/home/ubuntu' } }),
+    '/api/session/create': () => ({ __error: 'boom' }),
+  } })
+  t.after(() => app.dom.window.close())
+  await openFolderPicker(app)
+  app.document.querySelector('.sheet .cs-perm').click()
+  ;[...app.document.querySelectorAll('.sheet .cs-create')].find((b) => b.textContent.includes('Create session')).click()
+  await waitFor(() => deleteCalls(app).length === 1)
+  assert.equal(deleteCalls(app)[0].body.payload.args.request.workspaceId, 'w9')
 })

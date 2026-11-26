@@ -1588,13 +1588,16 @@
   // workspace.create, mirroring the official desktop directory browser.
   // preselectWsId/keepPerm carry the user's choices across the round trip
   // through the directory browser (perm would otherwise be lost).
-  function openCreateSheet(/** @type {any} */ preselectWsId, /** @type {any} */ keepPerm) {
+  /** @param {any} preselectWsId @param {any} keepPerm @param {any} [pendingWs] */
+  function openCreateSheet(/** @type {any} */ preselectWsId, /** @type {any} */ keepPerm, /** @type {any} */ pendingWs) {
     // A session only BELONGS to a workspace when created with workspaceId —
     // passing cwd alone leaves it unaffiliated (renders as "Ungrouped").
     // rc.1: 工作区清单直接读 workspace/follow 流喂的 state（开机即 baseline，
     // 增量实时），无需再发一次性 RPC。
+    // pendingWs：目录浏览器选好、尚未落库的目录（{ pendingPath }）。工作区在
+    // 「创建会话」确认时才真正创建，取消面板不留空工作区。
     /** @type {any} */
-    var chosen = { ws: null, perm: keepPerm || null } // ws: payload fragment; perm: preset value
+    var chosen = { ws: pendingWs ? { pendingPath: pendingWs.pendingPath } : null, perm: keepPerm || null } // ws: payload fragment; perm: preset value
     buildSheet(state.workspaces)
 
     function buildSheet(/** @type {any} */ wss) {
@@ -1604,6 +1607,18 @@
         sheet.appendChild(el('div', 'cs-section', T.wsSection))
         var preselectBtn = null
         var preselectWs = null
+        /** @type {any} */
+        var pendingBtn = null
+        if (chosen.ws && chosen.ws.pendingPath) {
+          // 待创建项：只显示目录名，点「创建会话」时才落库。
+          pendingBtn = el('button', 'sheet-item cs-ws')
+          pendingBtn.appendChild(el('div', null, baseName(chosen.ws.pendingPath)))
+          pendingBtn.appendChild(el('div', 'ws-sub', chosen.ws.pendingPath))
+          pendingBtn.addEventListener('click', function () {
+            pickWs(pendingBtn, { pendingPath: chosen.ws.pendingPath }, chosen.ws.pendingPath)
+          })
+          sheet.appendChild(pendingBtn)
+        }
         for (var i = 0; i < wss.length; i++) {
           (function (ws) {
             var b = el('button', 'sheet-item cs-ws')
@@ -1650,8 +1665,11 @@
         var createHint = el('div', 'cs-create-hint', T.createWhy)
         sheet.appendChild(createHint)
         // Auto-select the freshly created workspace AFTER createBtn exists
-        // (pickWs touches createBtn via refresh()).
-        if (preselectBtn && preselectWs) {
+        // (pickWs touches createBtn via refresh()). A pending directory is
+        // preselected the same way but only materializes on create.
+        if (pendingBtn) {
+          pickWs(pendingBtn, { pendingPath: chosen.ws.pendingPath }, chosen.ws.pendingPath)
+        } else if (preselectBtn && preselectWs) {
           pickWs(preselectBtn, { workspaceId: preselectWs.workspaceId }, preselectWs.path)
         }
         if (chosen.perm) markPerm()
@@ -1726,7 +1744,7 @@
           sheet.appendChild(el('div', 'sheet-empty', T.dirFail))
           var back = el('button', 'btn-ghost cs-create', T.dirBack)
           back.addEventListener('click', function () {
-            openCreateSheet(chosen.ws && chosen.ws.workspaceId, chosen.perm)
+            openCreateSheet(chosen.ws && chosen.ws.workspaceId, chosen.perm, chosen.ws && chosen.ws.pendingPath ? chosen.ws : null)
           })
           sheet.appendChild(back)
         })
@@ -1789,19 +1807,9 @@
 
         var use = el('button', 'btn-primary cs-create', T.dirUse)
         use.addEventListener('click', function () {
-          use.disabled = true
-          rpc('workspace.create', { path: v.path }).then(function (r) {
-            var ws = r && r.workspace
-            if (!ws) { toast(T.wsCreateFail); use.disabled = false; return }
-            if (state.view === 'list') loadList() // refresh the list behind the sheet
-            // Back to the session sheet; the new workspace is pre-selected,
-            // the kept permission survives the round trip.
-            openCreateSheet(ws.workspaceId, chosen.perm)
-          }).catch(function (e) {
-            console.error('[ws create]', e)
-            use.disabled = false
-            toast(T.wsCreateFail)
-          })
+          // 只选目录，不落库：回新建会话面板显示待创建项，点「创建会话」时才
+          // workspace.create；取消面板不会留下空工作区。
+          openCreateSheet(null, chosen.perm, { pendingPath: v.path })
         })
         sheet.appendChild(use)
       }
@@ -1837,21 +1845,44 @@
   }
 
   function doCreate(/** @type {any} */ chosen) {
-    var payload = chosen.ws
+    var sel = chosen.ws
+    if (sel && sel.pendingPath) {
+      // 目录是临时选择：确认建会话时才落库；会话建失败则回滚刚建的工作区。
+      rpc('workspace.create', { path: sel.pendingPath }).then(function (r) {
+        var ws = r && r.workspace
+        if (!ws || !ws.workspaceId) { toast(T.wsCreateFail); return }
+        return createSessionIn(ws.workspaceId, chosen, true)
+      }).catch(function (e) { console.error('[ws create]', e); toast(T.wsCreateFail) })
+      return
+    }
+    createSessionIn(sel ? sel.workspaceId : undefined, chosen, false)
+  }
+
+  // workspaceId 为空时建的是无归属会话（保留旧行为）；rollbackWs 表示工作区是
+  // 本次刚建的，会话失败要删掉它，别留下空工作区。
+  function createSessionIn(/** @type {any} */ workspaceId, /** @type {any} */ chosen, /** @type {boolean} */ rollbackWs) {
     // Mode is fixed to the standard system preset — never a user choice on
     // the mobile surface (desktop offers four presets; mobile stays standard).
-    payload.agentPreset = 'standard'
+    /** @type {any} */
+    var payload = { agentPreset: 'standard' }
+    if (workspaceId) payload.workspaceId = workspaceId
     rpc('session.create', payload).then(function (v) {
       if (!v || !v.sessionId) return
       if (chosen.wsPath) state.cwds[v.sessionId] = chosen.wsPath // server sets cwd = workspace path
-      if (payload.workspaceId) state.memberOf[v.sessionId] = payload.workspaceId
+      if (workspaceId) state.memberOf[v.sessionId] = workspaceId
       var sid = v.sessionId
       // Land the permission BEFORE opening the chat, so the first message the
       // user types can never outrun the preset switch.
       applyPerm(sid, chosen.perm).then(function () {
         location.hash = '#/s/' + encodeURIComponent(sid)
       })
-    }).catch(function (e) { console.error('[create]', e); toast(T.createFail) })
+    }).catch(function (e) {
+      console.error('[create]', e)
+      toast(T.createFail)
+      if (rollbackWs && workspaceId) {
+        rpc('workspace.delete', { workspaceId: workspaceId }).catch(function (e2) { console.error('[ws rollback]', e2) })
+      }
+    })
   }
 
   // Permission lands via the commands RPC, not session.prompt — slash lines

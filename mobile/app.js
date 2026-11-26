@@ -56,9 +56,7 @@
     newWorkspaceTitle: '新建工作区',
     newWorkspaceHint: '选一个目录，可以只建工作区，或直接开会话',
     newSessionHint: '在已有工作区里建',
-    createWsOnly: '只创建工作区',
     createWsAndSession: '创建工作区并开会话',
-    wsCreated: '工作区已创建',
     wsPendingBadge: '新建',
     wsSection: '工作区',
     ungrouped: '未分组',
@@ -205,9 +203,7 @@
     newWorkspaceTitle: 'New workspace',
     newWorkspaceHint: 'Pick a folder; create the workspace alone or start a session',
     newSessionHint: 'Pick an existing workspace',
-    createWsOnly: 'Create workspace only',
     createWsAndSession: 'Create workspace and session',
-    wsCreated: 'Workspace created',
     wsPendingBadge: 'New',
     wsSection: 'Workspace',
     ungrouped: 'Ungrouped',
@@ -1713,15 +1709,6 @@
         var createHint = el('div', 'cs-create-hint', T.createWhy)
         sheet.appendChild(createHint)
         sheet.appendChild(createBtn)
-        if (kind === 'workspace' && chosen.ws && chosen.ws.pendingPath) {
-          // 允许只建空工作区：不建会话，直接回列表。
-          var onlyBtn = el('button', 'btn-ghost cs-create-only', T.createWsOnly)
-          onlyBtn.addEventListener('click', function () {
-            closeSheet()
-            createWorkspaceOnly(chosen.ws.pendingPath)
-          })
-          sheet.appendChild(onlyBtn)
-        }
         // Auto-select the freshly created workspace AFTER createBtn exists
         // (pickWs touches createBtn via refresh()). A pending directory is
         // preselected the same way but only materializes on create.
@@ -1900,16 +1887,6 @@
     actions.appendChild(cancel)
     actions.appendChild(enable)
     box.appendChild(actions)
-  }
-
-  // 只建工作区：不建会话，直接回列表（用户明确要的「空工作区」）。
-  function createWorkspaceOnly(/** @type {string} */ path) {
-    rpc('workspace.create', { path: path }).then(function (r) {
-      var ws = r && r.workspace
-      if (!ws || !ws.workspaceId) { toast(T.wsCreateFail); return }
-      toast(T.wsCreated)
-      if (state.view === 'list') loadList()
-    }).catch(function (e) { console.error('[ws create]', e); toast(T.wsCreateFail) })
   }
 
   function doCreate(/** @type {any} */ chosen) {

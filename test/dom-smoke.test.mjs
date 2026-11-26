@@ -791,17 +791,22 @@ test('a failed session removes the workspace it just created', async (t) => {
   assert.equal(deleteCalls(app)[0].body.payload.args.request.workspaceId, 'w9')
 })
 
-test('creating a workspace alone writes no session', async (t) => {
+test('a new workspace always comes with a session', async (t) => {
   const app = createApp({ rpc: {
     '/api/directoryPicker/list': () => DIR_LIST,
     '/api/workspace/create': () => ({ workspace: { workspaceId: 'w9', path: '/home/ubuntu' } }),
+    '/api/session/create': () => ({ sessionId: 's9' }),
   } })
   t.after(() => app.dom.window.close())
   await openFolderPicker(app)
-  app.document.querySelector('.sheet .cs-create-only').click()
-  await waitFor(() => createCalls(app).length === 1)
-  assert.equal(app.calls.some((c) => c.path.endsWith('/api/session/create')), false)
-  assert.equal(app.document.querySelector('.sheet'), null)
+  assert.equal(app.document.querySelector('.sheet .cs-create-only'), null, 'no workspace-only action')
+  assert.deepEqual(
+    [...app.document.querySelectorAll('.sheet .cs-create')].map((b) => b.textContent),
+    ['Create workspace and session'],
+  )
+  app.document.querySelector('.sheet .cs-create').click()
+  await waitFor(() => app.calls.some((c) => c.path.endsWith('/api/session/create')))
+  assert.equal(createCalls(app).length, 1)
   assert.deepEqual(app.errors, [])
 })
 

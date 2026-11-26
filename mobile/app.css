@@ -17,9 +17,13 @@
   --bubble-user: #2563eb;
   --bubble-user-text: #ffffff;
   --header-h: calc(52px + env(safe-area-inset-top, 0px));
-  /* 字号与字体（账户面板）：正文倍率 + 正文字体栈，app.js 按本机设置覆盖。
-     只有阅读内容引用 --font-scale；页头、按钮、面板等固定区保持裸 px。 */
+  /* 字号与字体（账户面板）：app.js 按本机设置覆盖 --font-scale 与 --font-family。
+     正文基准与三个字体栈只在这里写一次：--font-base 是各档读数与阅读内容的
+     基准，--font-<id> 是字体族的唯一来源（app.js 只存 id、按 var() 引用）。
+     只有阅读内容引用 --font-scale / --font-family；页头、按钮、面板等固定区
+     保持裸 px 与系统字体。 */
   --font-scale: 1;
+  --font-base: 15px;
   --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --font-serif: 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', STSong, serif;
   --font-mono: ui-monospace, Menlo, Consolas, monospace;
@@ -50,13 +54,21 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  /* 正文基准 15px：未自带字号的阅读元素（.c-input / .q-custom 等）从这里继承 */
+  /* 正文基准 --font-base：未自带字号的阅读元素（.c-input / .q-custom 等）从这里继承 */
   font-family: var(--font-family);
-  font-size: calc(15px * var(--font-scale));
+  font-size: calc(var(--font-base) * var(--font-scale));
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
+/* 固定区的字体不跟随「字号与字体」：换衬线 / 等宽只作用于正文。页头、面板与
+   对话框壳、toast 显式钉回系统字体，壳内的标题、状态行、按钮不再继承 body；
+   壳内供阅读的文本（预览正文、审批原因、确认说明）各自显式引回 --font-family。 */
+.hd, .sheet, .cs-confirm, .mtoast { font-family: var(--font-sans); }
+/* 按钮不吃继承：浏览器给 <button> 的是自带字体，body 上的 --font-family 传不进去。
+   会话行、分组头、工具卡头与提问选项都是按钮，内容却属于阅读文本（字号已随档位），
+   必须显式 inherit 才跟上所选字体。 */
+.srow, .q-opt, .ws-head, .tc-head { font-family: inherit; }
 
 #app { height: 100%; display: flex; flex-direction: column; }
 
@@ -249,7 +261,7 @@ html, body {
 }
 .srow .body { flex: 1; min-width: 0; }
 .srow .t {
-  font-size: calc(15px * var(--font-scale));
+  font-size: calc(var(--font-base) * var(--font-scale));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -322,7 +334,7 @@ html, body {
   max-width: 88%;
   padding: 9px 12px;
   border-radius: 14px;
-  font-size: calc(15px * var(--font-scale));
+  font-size: calc(var(--font-base) * var(--font-scale));
   overflow-wrap: break-word;
 }
 .msg.user {
@@ -404,7 +416,7 @@ html, body {
 .md h1 { font-size: calc(19px * var(--font-scale)); }
 .md h2 { font-size: calc(17px * var(--font-scale)); }
 .md h3 { font-size: calc(16px * var(--font-scale)); }
-.md h4 { font-size: calc(15px * var(--font-scale)); }
+.md h4 { font-size: calc(var(--font-base) * var(--font-scale)); }
 .md code {
   padding: 1px 5px;
   border-radius: 6px;
@@ -870,7 +882,11 @@ details.reasoning[open] summary::before { content: '▾ '; }
 }
 .fs-pv-title { font-size: 18px; font-weight: 600; line-height: 1; }
 .fs-pv-menu { font-size: 18px; line-height: 1; }
-.fs-pv-body { font-size: calc(15px * var(--font-scale)); line-height: 1.55; }
+.fs-pv-body {
+  font-family: var(--font-family);
+  font-size: calc(var(--font-base) * var(--font-scale));
+  line-height: 1.55;
+}
 .fs-pv-ft { display: flex; justify-content: flex-end; margin-top: 8px; }
 .fs-pv-btn {
   padding: 5px 14px;
@@ -931,11 +947,12 @@ details.reasoning[open] summary::before { content: '▾ '; }
   color: var(--text3);
   font-variant-numeric: tabular-nums;
 }
-.fs-opt[data-scale="0.875"] .fs-opt-aa { font-size: calc(15px * 0.875); }
-.fs-opt[data-scale="1"] .fs-opt-aa { font-size: 15px; }
-.fs-opt[data-scale="1.125"] .fs-opt-aa { font-size: calc(15px * 1.125); }
-.fs-opt[data-scale="1.25"] .fs-opt-aa { font-size: calc(15px * 1.25); }
-.fs-opt[data-scale="1.375"] .fs-opt-aa { font-size: calc(15px * 1.375); }
+/* 各档 Aa = 正文基准 × 该档倍率（基准只在 :root 的 --font-base 写一次） */
+.fs-opt[data-scale="0.875"] .fs-opt-aa { font-size: calc(var(--font-base) * 0.875); }
+.fs-opt[data-scale="1"] .fs-opt-aa { font-size: var(--font-base); }
+.fs-opt[data-scale="1.125"] .fs-opt-aa { font-size: calc(var(--font-base) * 1.125); }
+.fs-opt[data-scale="1.25"] .fs-opt-aa { font-size: calc(var(--font-base) * 1.25); }
+.fs-opt[data-scale="1.375"] .fs-opt-aa { font-size: calc(var(--font-base) * 1.375); }
 .fs-opt.on { border-color: var(--accent); background: var(--accent-weak); color: var(--accent); }
 .fs-opt.on .fs-opt-dot { border-color: var(--accent); }
 .fs-opt.on .fs-opt-dot::after { background: var(--accent); }
@@ -983,7 +1000,12 @@ details.reasoning[open] summary::before { content: '▾ '; }
 }
 
 /* ── approval sheet ───────────────────────────────────────── */
-.ap-reason { color: var(--text); font-size: calc(15px * var(--font-scale)); margin-bottom: 6px; }
+.ap-reason {
+  color: var(--text);
+  font-family: var(--font-family);
+  font-size: calc(var(--font-base) * var(--font-scale));
+  margin-bottom: 6px;
+}
 .ap-tool {
   color: var(--text3);
   font-size: 12px;
@@ -1079,6 +1101,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
 }
 .cs-confirm-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
 .cs-confirm-desc {
+  font-family: var(--font-family);
   font-size: calc(14px * var(--font-scale));
   color: var(--text2);
   line-height: 1.6;
@@ -1114,7 +1137,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
 /* question blocks */
 .q-block { margin-top: 10px; }
 .q-head { font-size: 12px; color: var(--text3); margin-bottom: 2px; }
-.q-text { font-size: calc(15px * var(--font-scale)); font-weight: 500; margin-bottom: 6px; }
+.q-text { font-size: calc(var(--font-base) * var(--font-scale)); font-weight: 500; margin-bottom: 6px; }
 .q-detail {
   font-size: calc(13px * var(--font-scale));
   color: var(--text2);
@@ -1124,6 +1147,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   overflow-y: auto;
 }
 .q-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+/* 选项是提问卡正文的一部分：与 .q-text / .q-detail 同随档位缩放，44px 触控高度不缩 */
 .q-opt {
   min-height: 44px;
   padding: 10px 16px;
@@ -1131,7 +1155,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   border-radius: 999px;
   background: var(--bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   cursor: pointer;
 }
 .q-opt.on { border-color: var(--accent); background: var(--accent-weak); color: var(--accent); }

@@ -852,20 +852,23 @@
   loadCollapsed()
 
   // ── font prefs（账户面板「字号与字体」）──────────────────────
-  // 纯本机偏好：没有服务端设置接口，落 localStorage。正文基准 15px 乘档位
-  // 倍率 = CSS 变量 --font-scale，字体族换 --font-family；app.css 里只有
-  // 阅读内容引用这两个变量，页头、按钮、面板等固定区保持裸 px。读档按白名单
-  // 校验：档位只认五个预设值、字体只认三个枚举，存档被手改或写坏时回默认。
+  // 纯本机偏好：没有服务端设置接口，落 localStorage。正文基准乘档位倍率 =
+  // CSS 变量 --font-scale，字体族换 --font-family；app.css 里只有阅读内容引用
+  // 这两个变量，页头、面板等固定区保持裸 px 与系统字体。字体栈与基准
+  // 字号只在 app.css 写一次（--font-<id> 与 --font-base）：这里只存档位与
+  // 字体 id，按 var() 引用、从 CSS 读回基准，不存第二份（读不到时的兜底 15 与
+  // 样式表同值，测试对账）。读档按白名单校验：
+  // 档位只认五个预设值、字体只认三个枚举，存档被手改或写坏时回默认。
   var FONT_KEY = 'dsh-web-mobile-pmsfh:font'
-  var FONT_BASE_PX = 15
   /** @type {{ scale: number }[]} */
   var FONT_SCALES = [{ scale: 0.875 }, { scale: 1 }, { scale: 1.125 }, { scale: 1.25 }, { scale: 1.375 }]
-  /** @type {{ id: string, stack: string }[]} */
-  var FONT_FAMILIES = [
-    { id: 'sans', stack: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif" },
-    { id: 'serif', stack: "'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', STSong, serif" },
-    { id: 'mono', stack: 'ui-monospace, Menlo, Consolas, monospace' },
-  ]
+  /** 字体 id，同时是 app.css 里 --font-<id> 的后缀 */
+  var FONT_FAMILIES = ['sans', 'serif', 'mono']
+  /** @returns {number} 正文基准 px，读 app.css 的 --font-base；样式表未就绪或值不是 px 时回 15 */
+  function fontBasePx() {
+    return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--font-base')) || 15
+  }
+  var FONT_BASE_PX = fontBasePx()
   /** @returns {{ scale: number, family: string }} */
   function fontDefaults() { return { scale: 1, family: 'sans' } }
   function loadFontPrefs() {
@@ -878,7 +881,7 @@
       if (typeof v.scale === 'number') {
         for (var i = 0; i < FONT_SCALES.length; i++) if (FONT_SCALES[i].scale === v.scale) out.scale = v.scale
       }
-      for (var j = 0; j < FONT_FAMILIES.length; j++) if (FONT_FAMILIES[j].id === v.family) out.family = v.family
+      for (var j = 0; j < FONT_FAMILIES.length; j++) if (FONT_FAMILIES[j] === v.family) out.family = v.family
     } catch (e) {}
     return out
   }
@@ -886,15 +889,11 @@
     try { localStorage.setItem(FONT_KEY, JSON.stringify(state.font)) } catch (e) {}
   }
   // 只改 CSS 变量，不动 DOM：所有缩放区选择器都是 calc(Npx * var(--font-scale))。
+  // 字体只写 var(--font-<id>) 引用，字体栈本身不离开 app.css。
   function applyFontPrefs() {
     var rootStyle = document.documentElement.style
     rootStyle.setProperty('--font-scale', String(state.font.scale))
-    rootStyle.setProperty('--font-family', fontFamilyById(state.font.family).stack)
-  }
-  /** @param {string} id */
-  function fontFamilyById(id) {
-    for (var i = 0; i < FONT_FAMILIES.length; i++) if (FONT_FAMILIES[i].id === id) return FONT_FAMILIES[i]
-    return FONT_FAMILIES[0]
+    rootStyle.setProperty('--font-family', 'var(--font-' + state.font.family + ')')
   }
   // 词条用点访问而不过 T[key]：test/i18n-keys 靠静态用点对账两套词典。
   /** @param {number} v */
@@ -990,6 +989,7 @@
   /** @param {any} sheet */
   function renderAccountSheet(sheet) {
     sheet.textContent = ''
+    sheet.__sheetBack = null
     retargetSheet(sheet, T.account)
     sheet.appendChild(el('div', 'sheet-title', T.account))
     var font = el('button', 'sheet-item si-row')
@@ -1023,11 +1023,13 @@
     try { box.focus({ preventScroll: true }) } catch (/** @type {any} */ e) { box.focus() }
   }
   // 字号与字体：账户面板的二级页，复用同一面板壳原地重渲染（模型面板同款）。
-  // 选中即生效并落盘，面板不关，方便对着预览多试几档；面板自身字号固定。
+  // 选中即生效并落盘，面板不关，方便对着预览多试几档；面板自身字号与字体固定。
   /** @param {any} sheet */
   function renderFontSheet(sheet) {
     sheet.textContent = ''
     sheet.scrollTop = 0
+    // 登记给面板壳：Esc 先退回账户页（openSheet 的 onEscape），再按一次才关。
+    sheet.__sheetBack = function () { renderAccountSheet(sheet) }
     retargetSheet(sheet, T.fontSetting)
 
     var nav = el('div', 'sheet-nav')
@@ -1079,26 +1081,28 @@
       })(FONT_SCALES[i])
     }
     sheet.appendChild(opts)
+    wireRadioGroup(opts)
 
     sheet.appendChild(el('div', 'sheet-sec', T.fontFamily))
     var chips = el('div', 'effort-row')
     chips.setAttribute('role', 'radiogroup')
     chips.setAttribute('aria-label', T.fontFamily)
     for (var j = 0; j < FONT_FAMILIES.length; j++) {
-      (function (f) {
+      (function (id) {
         var b = el('button', 'effort-chip fs-chip')
         b.setAttribute('type', 'button')
         b.setAttribute('role', 'radio')
-        b.setAttribute('data-family', f.id)
+        b.setAttribute('data-family', id)
         var aa = el('span', 'fs-chip-aa', 'Aa')
         aa.setAttribute('aria-hidden', 'true')
         b.appendChild(aa)
-        b.appendChild(el('span', 'fs-chip-name', fontFamilyLabel(f.id)))
-        b.addEventListener('click', function () { setFontFamily(f.id, sheet) })
+        b.appendChild(el('span', 'fs-chip-name', fontFamilyLabel(id)))
+        b.addEventListener('click', function () { setFontFamily(id, sheet) })
         chips.appendChild(b)
       })(FONT_FAMILIES[j])
     }
     sheet.appendChild(chips)
+    wireRadioGroup(chips)
 
     var foot = el('div', 'fs-foot')
     var status = el('span', 'fs-status')
@@ -1109,28 +1113,50 @@
     foot.appendChild(status)
     foot.appendChild(reset)
     sheet.appendChild(foot)
-    syncFontSheet(sheet)
+    syncFontSheet(sheet, false)
+  }
+  // radiogroup 的方向键：左右上下循环切，焦点跟随并选中（radio 的自动激活
+  // 语义），走的是各选项自己的 click 入口，与手指点选同一条路径。
+  /** @param {any} group */
+  function wireRadioGroup(group) {
+    group.addEventListener('keydown', function (/** @type {any} */ ev) {
+      var items = group.querySelectorAll('[role="radio"]')
+      var from = -1
+      for (var i = 0; i < items.length; i++) if (items[i] === ev.target.closest('[role="radio"]')) from = i
+      if (from < 0) return
+      var to = -1
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') to = (from + 1) % items.length
+      else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') to = (from - 1 + items.length) % items.length
+      if (to < 0) return
+      ev.preventDefault()
+      items[to].focus()
+      items[to].click()
+    })
   }
   // 选中态、读数与保存状态随当前偏好同步（选档 / 换字体 / 恢复默认后调用）。
-  /** @param {any} sheet */
-  function syncFontSheet(sheet) {
+  // roving tabindex：每组只有选中项占一个 Tab 位，其余靠方向键到达。
+  // saved：本次是否真的写入了存档；刚打开面板时为 false，状态行留空。
+  /** @param {any} sheet @param {boolean} saved */
+  function syncFontSheet(sheet, saved) {
     if (!sheet.isConnected) return
     var opts = sheet.querySelectorAll('.fs-opt')
     for (var i = 0; i < opts.length; i++) {
       var on = Number(opts[i].getAttribute('data-scale')) === state.font.scale
       opts[i].classList.toggle('on', on)
       opts[i].setAttribute('aria-checked', on ? 'true' : 'false')
+      opts[i].tabIndex = on ? 0 : -1
     }
     var chips = sheet.querySelectorAll('.fs-chip')
     for (var j = 0; j < chips.length; j++) {
       var on2 = chips[j].getAttribute('data-family') === state.font.family
       chips[j].classList.toggle('on', on2)
       chips[j].setAttribute('aria-checked', on2 ? 'true' : 'false')
+      chips[j].tabIndex = on2 ? 0 : -1
     }
     var px = sheet.querySelector('.fs-meta b')
     if (px) px.textContent = (FONT_BASE_PX * state.font.scale).toFixed(1) + 'px'
     var st = sheet.querySelector('.fs-status')
-    if (st) st.textContent = T.fontSaved + ' · ' + fontPrefLabel()
+    if (st) st.textContent = saved ? T.fontSaved + ' · ' + fontPrefLabel() : ''
   }
   /** @param {number} v @param {any} sheet */
   function setFontScale(v, sheet) {
@@ -1154,7 +1180,7 @@
   function commitFontPrefs(sheet) {
     applyFontPrefs()
     saveFontPrefs()
-    syncFontSheet(sheet)
+    syncFontSheet(sheet, true)
   }
 
   // Header icons are inline SVG, not text glyphs: the visible ink of '⟳' and
@@ -2374,7 +2400,7 @@
   /** @type {any} */
   var modalStack = [] // open shells; the last entry is the interactive one
 
-  /** @param {any} opts { label: string, confirm: bool, maskClose: bool, onClose: fn } */
+  /** @param {any} opts { label: string, confirm: bool, maskClose: bool, onClose: fn, onEscape: fn } */
   function openModalShell(/** @type {any} */ opts) {
     var prevFocus = document.activeElement
     var mask = el('div', 'mask')
@@ -2409,7 +2435,7 @@
     // panel content could.
     if (opts.label) box.setAttribute('aria-label', asString(opts.label))
     box.tabIndex = -1
-    var shell = { mask: mask, box: box, content: content, prevFocus: prevFocus, onClose: opts.onClose || null }
+    var shell = { mask: mask, box: box, content: content, prevFocus: prevFocus, onClose: opts.onClose || null, onEscape: opts.onEscape || null }
     if (opts.maskClose !== false) {
       mask.addEventListener('click', function (/** @type {any} */ ev) {
         if (ev.target !== mask) return
@@ -2471,7 +2497,9 @@
     var shell = modalStack[modalStack.length - 1]
     if (ev.key === 'Escape') {
       ev.preventDefault()
-      if (shell.onClose) shell.onClose()
+      // onEscape：有分层内容的壳用它只退一层；没有则与关闭按钮同路。
+      if (shell.onEscape) shell.onEscape()
+      else if (shell.onClose) shell.onClose()
       else modalClose(shell.mask)
       return
     }
@@ -2509,7 +2537,18 @@
   }
   function openSheet(/** @type {any} */ build, /** @type {any} */ label) {
     closeSheet()
-    var shell = openModalShell({ label: label, onClose: closeSheet, maskClose: false })
+    var shell = openModalShell({
+      label: label,
+      onClose: closeSheet,
+      maskClose: false,
+      // Esc 只退一层：内容若是二级页（renderFontSheet 在 .sheet-content 上登记
+      // __sheetBack），先回上一页；关闭按钮与背景点击仍是整页关闭。
+      onEscape: function () {
+        var back = shell.content.__sheetBack
+        if (back) back()
+        else closeSheet()
+      },
+    })
     sheetOpenedAt = Date.now()
     shell.mask.addEventListener('click', function (/** @type {any} */ ev) {
       // The synthesized click trailing a long-press lands on the mask at the

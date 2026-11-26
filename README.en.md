@@ -59,7 +59,8 @@ official code.
   the mobile page; "Font & size" in the account sheet offers five text sizes
   (default 15px, largest 20.6px) and three font families (system, serif,
   monospace) for conversation text, the session list and inputs — the header,
-  buttons and panels keep their size — and the choice is saved on the device;
+  buttons and panels keep their size and font — and the choice is
+  saved on the device;
   uses the existing DSH login state with guidance when it expires and a
   sign-out action
 

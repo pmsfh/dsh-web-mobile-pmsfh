@@ -1,5 +1,6 @@
-// 行为冒烟：用 jsdom 载入真实 index.html + app.js，桩掉 fetch/WebSocket，
+// 行为冒烟：用 jsdom 载入真实 index.html + app.css + app.js，桩掉 fetch/WebSocket，
 // 覆盖列表分组、聊天折叠与弹层交互。此前这些路径只在目标机手工点过。
+// app.css 以内联 <style> 注入：app.js 启动时要从样式表读回正文基准（--font-base）。
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -9,6 +10,7 @@ import { JSDOM, VirtualConsole } from 'jsdom'
 
 const html = fs.readFileSync(new URL('../mobile/index.html', import.meta.url), 'utf8')
 const appSource = fs.readFileSync(new URL('../mobile/app.js', import.meta.url), 'utf8')
+const cssSource = fs.readFileSync(new URL('../mobile/app.css', import.meta.url), 'utf8')
 const mdSource = fs.readFileSync(new URL('../mobile/vendor/markdown-it.min.js', import.meta.url), 'utf8')
 const cjkSource = fs.readFileSync(new URL('../mobile/vendor/markdown-it-cjk-friendly.min.js', import.meta.url), 'utf8')
 const appPath = fileURLToPath(new URL('../mobile/app.js', import.meta.url))
@@ -70,6 +72,7 @@ const WORKSPACES = [
 const ARCHIVED = ['s5']
 
 // opts.storage：app.js 跑之前先写进 localStorage 的键值（测本机偏好的读档路径）。
+// opts.cssVars：app.js 跑之前先写到 <html> 行内样式的 CSS 变量（覆盖样式表里的值）。
 function createApp(opts = {}) {
   const errors = []
   const virtualConsole = new VirtualConsole()
@@ -103,6 +106,14 @@ function createApp(opts = {}) {
   const WS = makeWebSocketClass()
   window.WebSocket = WS
   for (const [key, value] of Object.entries(opts.storage || {})) window.localStorage.setItem(key, value)
+  // jsdom 默认不取外链样式表：把真实 app.css 内联进去，getComputedStyle 才有东西可读。
+  // opts.css === false 时不内联：测样式表未就绪、app.js 读不到基准的那条路径。
+  if (opts.css !== false) {
+    const style = window.document.createElement('style')
+    style.textContent = cssSource
+    window.document.head.appendChild(style)
+  }
+  for (const [name, value] of Object.entries(opts.cssVars || {})) window.document.documentElement.style.setProperty(name, value)
   const context = dom.getInternalVMContext()
   vm.runInContext(mdSource, context, { filename: mdPath })
   vm.runInContext(cjkSource, context, { filename: cjkPath })
@@ -383,6 +394,10 @@ test('markdown keeps raw HTML, javascript: and data: links inert', async (t) => 
 // 界面语言跟随 navigator.language，jsdom 下是 en-US，断言用英文词条。
 const FONT_KEY = 'dsh-web-mobile-pmsfh:font'
 const cssVar = (app, name) => app.document.documentElement.style.getPropertyValue(name)
+// 行内变量写的是 var(--font-<id>) 引用；解析后的字体栈从 computed style 取。
+const cssComputed = (app, name) => app.window.getComputedStyle(app.document.documentElement).getPropertyValue(name)
+const key = (app, target, k) => target.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: k, bubbles: true }))
+const tabStops = (root, selector) => [...root.querySelectorAll(selector)].filter((node) => node.tabIndex === 0).map((node) => node.dataset.scale || node.dataset.family)
 
 async function openFontPanel(app) {
   await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
@@ -438,12 +453,18 @@ test('account sheet lists the font entry above sign-out and re-renders in place'
     [['sans', 'true', 'AaSystem'], ['serif', 'false', 'AaSerif'], ['mono', 'false', 'AaMonospace']],
   )
   assert.equal(sheet.querySelector('.fs-meta b').textContent, '15.0px')
-  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Default · 15.0px')
+  // Nothing has been written yet: the status line stays empty until a real change.
+  assert.equal(sheet.querySelector('.fs-status').textContent, '')
+  assert.equal(sheet.querySelector('.fs-status').getAttribute('role'), 'status')
+  // Roving tabindex: one Tab stop per group, on the checked option.
+  assert.deepEqual(tabStops(sheet, '.fs-opt'), ['1'])
+  assert.deepEqual(tabStops(sheet, '.fs-chip'), ['sans'])
 
   // Re-picking the current level is a no-op: nothing is written until a real change.
   sheet.querySelector('.fs-opt[data-scale="1"]').click()
   sheet.querySelector('.fs-chip[data-family="sans"]').click()
   assert.equal(app.window.localStorage.getItem(FONT_KEY), null)
+  assert.equal(sheet.querySelector('.fs-status').textContent, '')
 
   sheet.querySelector('.sheet-back').click()
   await waitFor(() => app.document.querySelector('.sheet .si-row'))
@@ -459,6 +480,7 @@ test('picking a size or family applies at once, keeps the panel open and persist
 
   sheet.querySelector('.fs-opt[data-scale="1.125"]').click()
   assert.equal(cssVar(app, '--font-scale'), '1.125')
+  assert.deepEqual(tabStops(sheet, '.fs-opt'), ['1.125'])
   assert.equal(app.window.localStorage.getItem(FONT_KEY), '{"scale":1.125,"family":"sans"}')
   assert.equal(app.document.querySelector('.sheet'), sheet, 'panel stays open for preview')
   assert.equal(app.document.getElementById('app').inert, true)
@@ -469,7 +491,11 @@ test('picking a size or family applies at once, keeps the panel open and persist
   assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Large · 16.9px')
 
   sheet.querySelector('.fs-chip[data-family="serif"]').click()
-  assert.match(cssVar(app, '--font-family'), /Songti SC/)
+  assert.deepEqual(tabStops(sheet, '.fs-chip'), ['serif'])
+  // JS only names the family; the stack itself comes from the stylesheet.
+  assert.equal(cssVar(app, '--font-family'), 'var(--font-serif)')
+  assert.equal(cssComputed(app, '--font-family'), cssComputed(app, '--font-serif'))
+  assert.match(cssComputed(app, '--font-family'), /Songti SC/)
   assert.equal(app.window.localStorage.getItem(FONT_KEY), '{"scale":1.125,"family":"serif"}')
   assert.equal(sheet.querySelectorAll('.fs-chip.on').length, 1)
   assert.equal(sheet.querySelector('.fs-chip.on').getAttribute('data-family'), 'serif')
@@ -491,11 +517,14 @@ test('saved font prefs apply at boot; anything outside the whitelist falls back 
   const good = createApp({ storage: { [FONT_KEY]: '{"scale":1.25,"family":"mono"}' } })
   t.after(() => good.dom.window.close())
   assert.equal(cssVar(good, '--font-scale'), '1.25', 'applied while app.js boots')
-  assert.match(cssVar(good, '--font-family'), /ui-monospace/)
+  assert.match(cssComputed(good, '--font-family'), /ui-monospace/)
   const sheet = await openFontPanel(good)
   assert.equal(sheet.querySelector('.fs-opt.on').getAttribute('data-scale'), '1.25')
   assert.equal(sheet.querySelector('.fs-chip.on').getAttribute('data-family'), 'mono')
-  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Larger · 18.8px · Monospace')
+  // Saved earlier, not in this visit: opening the panel alone never claims a save.
+  assert.equal(sheet.querySelector('.fs-status').textContent, '')
+  assert.deepEqual(tabStops(sheet, '.fs-opt'), ['1.25'])
+  assert.deepEqual(tabStops(sheet, '.fs-chip'), ['mono'])
   assert.deepEqual(good.errors, [])
 
   // [stored value, expected account-row label]: scale must be one of the five preset
@@ -515,7 +544,7 @@ test('saved font prefs apply at boot; anything outside the whitelist falls back 
     app.document.querySelector('.hd button[aria-label="Account"]').click()
     await waitFor(() => app.document.querySelector('.sheet .si-value'))
     assert.equal(app.document.querySelector('.sheet .si-value').textContent, label, raw)
-    assert.match(cssVar(app, '--font-family'), label.endsWith('Serif') ? /Songti SC/ : /-apple-system/, raw)
+    assert.equal(cssVar(app, '--font-family'), label.endsWith('Serif') ? 'var(--font-serif)' : 'var(--font-sans)', raw)
     assert.equal(app.window.localStorage.getItem(FONT_KEY), raw, 'boot never rewrites the stored value')
     assert.deepEqual(app.errors, [])
   }
@@ -529,7 +558,9 @@ test('reset returns to defaults, writes them back and keeps the panel open', asy
 
   sheet.querySelector('.fs-reset').click()
   assert.equal(cssVar(app, '--font-scale'), '1')
-  assert.match(cssVar(app, '--font-family'), /-apple-system/)
+  assert.equal(cssVar(app, '--font-family'), 'var(--font-sans)')
+  assert.deepEqual(tabStops(sheet, '.fs-opt'), ['1'])
+  assert.deepEqual(tabStops(sheet, '.fs-chip'), ['sans'])
   assert.equal(app.window.localStorage.getItem(FONT_KEY), '{"scale":1,"family":"sans"}')
   assert.equal(app.document.querySelector('.sheet'), sheet)
   assert.equal(sheet.querySelector('.fs-opt.on').getAttribute('data-scale'), '1')
@@ -537,5 +568,139 @@ test('reset returns to defaults, writes them back and keeps the panel open', asy
   assert.equal(sheet.querySelector('.fs-chip.on').getAttribute('data-family'), 'sans')
   assert.equal(sheet.querySelector('.fs-meta b').textContent, '15.0px')
   assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Default · 15.0px')
+  assert.deepEqual(app.errors, [])
+})
+
+test('the base size falls back to 15px when --font-base cannot be read', async (t) => {
+  // 两条读不到的路径：样式表未就绪（变量不存在），值在但不是 px（parseFloat 得 NaN）。
+  const unreadable = [
+    ['stylesheet missing', createApp({ css: false })],
+    ['value is not px', createApp({ cssVars: { '--font-base': 'inherit' } })],
+  ]
+  for (const [, app] of unreadable) {
+    t.after(() => app.dom.window.close())
+    // 前提：这个环境里确实读不出数字，否则下面的断言测的不是兜底。
+    const read = parseFloat(cssComputed(app, '--font-base'))
+    assert.ok(Number.isNaN(read), `--font-base must not parse as a number here, got ${read}`)
+    const sheet = await openFontPanel(app)
+    const px = [...sheet.querySelectorAll('.fs-opt')].map((node) => node.querySelector('.fs-opt-px').textContent)
+    assert.deepEqual(px, ['13.1px', '15.0px', '16.9px', '18.8px', '20.6px'])
+    assert.equal(sheet.querySelector('.fs-meta b').textContent, '15.0px')
+    assert.ok(!/NaN/.test(sheet.textContent), `no NaN leaks into the panel: ${sheet.textContent}`)
+    sheet.querySelector('.sheet-back').click()
+    await waitFor(() => app.document.querySelector('.sheet .si-row'))
+    assert.equal(app.document.querySelector('.sheet .si-value').textContent, 'Default · 15.0px')
+    assert.deepEqual(app.errors, [])
+  }
+})
+
+test('arrow keys step through both groups, select as they go and keep one Tab stop', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  const sheet = await openFontPanel(app)
+  const opt = (scale) => sheet.querySelector(`.fs-opt[data-scale="${scale}"]`)
+  const chip = (family) => sheet.querySelector(`.fs-chip[data-family="${family}"]`)
+
+  // ArrowDown from the checked size picks the next one and takes focus along.
+  opt('1').focus()
+  key(app, opt('1'), 'ArrowDown')
+  assert.equal(app.document.activeElement, opt('1.125'), 'focus follows the selection')
+  assert.equal(opt('1.125').getAttribute('aria-checked'), 'true')
+  assert.equal(opt('1').getAttribute('aria-checked'), 'false')
+  assert.equal(cssVar(app, '--font-scale'), '1.125')
+  assert.deepEqual(tabStops(sheet, '.fs-opt'), ['1.125'])
+
+  // ArrowUp / ArrowRight behave the same way; both ends wrap around.
+  key(app, opt('1.125'), 'ArrowUp')
+  assert.equal(cssVar(app, '--font-scale'), '1')
+  key(app, opt('1'), 'ArrowUp')
+  assert.equal(cssVar(app, '--font-scale'), '0.875')
+  key(app, opt('0.875'), 'ArrowUp')
+  assert.equal(cssVar(app, '--font-scale'), '1.375', 'up from the first wraps to the last')
+  key(app, opt('1.375'), 'ArrowDown')
+  assert.equal(cssVar(app, '--font-scale'), '0.875', 'down from the last wraps to the first')
+  key(app, opt('0.875'), 'ArrowRight')
+  assert.equal(cssVar(app, '--font-scale'), '1')
+
+  // Any other key is left alone.
+  key(app, opt('1'), 'a')
+  assert.equal(cssVar(app, '--font-scale'), '1')
+  assert.equal(app.document.activeElement, opt('1'))
+
+  // Family group: ArrowRight picks the next family, ArrowLeft the previous one, both wrap.
+  chip('sans').focus()
+  key(app, chip('sans'), 'ArrowRight')
+  assert.equal(app.document.activeElement, chip('serif'))
+  assert.equal(chip('serif').getAttribute('aria-checked'), 'true')
+  assert.equal(cssVar(app, '--font-family'), 'var(--font-serif)')
+  assert.deepEqual(tabStops(sheet, '.fs-chip'), ['serif'])
+  key(app, chip('serif'), 'ArrowLeft')
+  assert.equal(cssVar(app, '--font-family'), 'var(--font-sans)')
+  key(app, chip('sans'), 'ArrowLeft')
+  assert.equal(cssVar(app, '--font-family'), 'var(--font-mono)', 'left from the first wraps to the last')
+  key(app, chip('mono'), 'ArrowDown')
+  assert.equal(cssVar(app, '--font-family'), 'var(--font-sans)')
+  key(app, chip('sans'), 'ArrowUp')
+  assert.equal(cssVar(app, '--font-family'), 'var(--font-mono)')
+
+  // A keyboard pick is a real save, exactly like tapping.
+  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Default · 15.0px · Monospace')
+  assert.equal(app.window.localStorage.getItem(FONT_KEY), '{"scale":1,"family":"mono"}')
+  assert.equal(app.document.querySelector('.sheet'), sheet, 'panel stays open')
+  // Tab order across the whole panel: close, back, one stop per group, reset.
+  assert.deepEqual(
+    [...sheet.querySelectorAll('button')].filter((node) => node.tabIndex === 0).map((node) => node.classList[0]),
+    ['sheet-close', 'sheet-back', 'fs-opt', 'effort-chip', 'fs-reset'],
+  )
+  assert.deepEqual(app.errors, [])
+})
+
+test('Escape steps back from the font page before it closes the panel', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  const sheet = await openFontPanel(app)
+  const escape = () => app.document.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+
+  // First Esc: back to the account page, same shell, nothing closed.
+  escape()
+  await waitFor(() => app.document.querySelector('.sheet .si-row'))
+  assert.equal(app.document.querySelector('.sheet'), sheet, 'same shell — still open')
+  assert.equal(sheet.querySelectorAll('.fs-opt').length, 0)
+  assert.equal(sheet.getAttribute('aria-label'), 'Account')
+  assert.equal(app.document.getElementById('app').inert, true)
+
+  // Second Esc: closes, as on any other panel.
+  escape()
+  await waitFor(() => !app.document.querySelector('.sheet'))
+  assert.equal(app.document.getElementById('app').inert, false)
+
+  // The close button is not a back button: on the font page it closes the whole panel.
+  await openFontPanel(app)
+  sheet.querySelector('.sheet-close').click()
+  await waitFor(() => !app.document.querySelector('.sheet'))
+  assert.equal(app.document.getElementById('app').inert, false)
+  assert.deepEqual(app.errors, [])
+})
+
+test('the base text size lives in the stylesheet alone; readouts and rendering follow it', async (t) => {
+  const app = createApp({ cssVars: { '--font-base': '16px' } })
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  app.document.querySelector('.hd button[aria-label="Account"]').click()
+  await waitFor(() => app.document.querySelector('.sheet .si-row'))
+  assert.equal(app.document.querySelector('.sheet .si-value').textContent, 'Default · 16.0px')
+  app.document.querySelector('.sheet .si-row').click()
+  await waitFor(() => app.document.querySelectorAll('.sheet .fs-opt').length === 5)
+  const sheet = app.document.querySelector('.sheet')
+  assert.deepEqual(
+    [...sheet.querySelectorAll('.fs-opt-px')].map((node) => node.textContent),
+    ['14.0px', '16.0px', '18.0px', '20.0px', '22.0px'],
+  )
+  assert.equal(sheet.querySelector('.fs-meta b').textContent, '16.0px')
+  assert.equal(app.window.getComputedStyle(app.document.body).fontSize, '16px', 'body text is sized from the same value')
+
+  sheet.querySelector('.fs-opt[data-scale="1.125"]').click()
+  assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Large · 18.0px')
+  assert.equal(app.window.getComputedStyle(app.document.body).fontSize, '18px')
   assert.deepEqual(app.errors, [])
 })

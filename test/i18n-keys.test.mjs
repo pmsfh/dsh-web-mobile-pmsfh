@@ -130,3 +130,20 @@ test('every T key used in mobile/app.js exists in both locales', () => {
 test('dynamic T[...] accesses stay on the descKey table', () => {
   assert.deepEqual(dynamic, [], `unexpected dynamic T[...] access: ${dynamic.join(', ')}`)
 })
+
+function placeholders(value) {
+  return [...String(value).matchAll(/\{([A-Za-z0-9_]+)\}/g)].map((m) => m[1]).sort()
+}
+
+test('locale placeholders match between zh and en', () => {
+  const problems = []
+  for (const key of Object.keys(zh)) {
+    if (!(key in en)) continue
+    const zhVars = placeholders(zh[key])
+    const enVars = placeholders(en[key])
+    if (JSON.stringify(zhVars) !== JSON.stringify(enVars)) {
+      problems.push(`${key}: zh=${JSON.stringify(zhVars)} en=${JSON.stringify(enVars)}`)
+    }
+  }
+  assert.deepEqual(problems, [], `locale placeholder mismatch:\n- ${problems.join('\n- ')}`)
+})

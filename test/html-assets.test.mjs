@@ -11,9 +11,12 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const mount = '/dsh-web-mobile-pmsfh/'
 const mobileDir = path.join(root, 'mobile')
 
+function readHtml() {
+  return fs.readFileSync(path.join(mobileDir, 'index.html'), 'utf8')
+}
+
 function localRefs() {
-  const html = fs.readFileSync(path.join(mobileDir, 'index.html'), 'utf8')
-  return [...html.matchAll(/(?:href|src)=["']([^"']+)["']/g)]
+  return [...readHtml().matchAll(/(?:href|src)=["']([^"']+)["']/g)]
     .map((m) => m[1])
     .filter((u) => u.startsWith(mount))
     .map((u) => u.slice(mount.length))
@@ -43,4 +46,22 @@ test('every mobile asset is referenced by index.html', () => {
   const referenced = new Set(localRefs())
   const orphans = diskAssets().filter((rel) => !referenced.has(rel))
   assert.deepEqual(orphans, [], `mobile/ 下未被引用的资源: ${orphans.join(', ')}`)
+})
+
+test('every asset reference stays under the plugin mount', () => {
+  const refs = [...readHtml().matchAll(/(?:href|src)=["']([^"']+)["']/gi)].map((m) => m[1])
+  const outside = refs.filter((ref) => !ref.startsWith(mount) && !ref.startsWith('data:'))
+  assert.deepEqual(outside, [], `页面引用了挂载前缀之外的资源: ${outside.join(', ')}`)
+})
+
+test('vendor scripts load before app.js', () => {
+  const srcs = [...readHtml().matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
+    .map((m) => m[1])
+  const app = srcs.indexOf(`${mount}app.js`)
+  assert.ok(app >= 0, 'app.js script not found')
+  const vendors = srcs.filter((src) => src.startsWith(`${mount}vendor/`))
+  assert.ok(vendors.length > 0, 'no vendor script found')
+  for (const vendor of vendors) {
+    assert.ok(srcs.indexOf(vendor) < app, `${vendor} must load before app.js`)
+  }
 })

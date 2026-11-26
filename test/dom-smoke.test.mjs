@@ -836,3 +836,16 @@ test('with no workspace the only entry is the workspace flow', async (t) => {
   assert.equal(app.document.querySelector('.sheet .cs-ws-new'), null)
   assert.deepEqual(app.errors, [])
 })
+
+test('a failed directory listing closes the sheet instead of looping', async (t) => {
+  const app = createApp({ rpc: { '/api/directoryPicker/list': () => ({ __error: 'boom' }) } })
+  t.after(() => app.dom.window.close())
+  await openNewSheet(app)
+  ;[...app.document.querySelectorAll('.sheet .sheet-item')].find((b) => b.textContent.includes('New workspace')).click()
+  await waitFor(() => app.document.querySelector('.sheet .btn-ghost'))
+  assert.match(app.document.querySelector('.sheet .btn-ghost').textContent, /Close/)
+  const before = app.calls.filter((c) => c.path.endsWith('/api/directoryPicker/list')).length
+  app.document.querySelector('.sheet .btn-ghost').click()
+  await waitFor(() => !app.document.querySelector('.sheet'))
+  assert.equal(app.calls.filter((c) => c.path.endsWith('/api/directoryPicker/list')).length, before)
+})

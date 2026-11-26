@@ -54,7 +54,7 @@
     newSession: '新建会话',
     newSheetTitle: '新建',
     newWorkspaceTitle: '新建工作区',
-    newWorkspaceHint: '选一个目录，可以只建工作区，或直接开会话',
+    newWorkspaceHint: '选一个目录，建好后工作区和会话一起创建',
     newSessionHint: '在已有工作区里建',
     createWsAndSession: '创建工作区并开会话',
     wsPendingBadge: '新建',
@@ -156,8 +156,6 @@
     archive: '归档此会话',
     archived: '已归档',
     archiveFail: '归档失败',
-    wsNew: '➕ 新建工作区…',
-    wsNewHint: '选择一个目录作为新工作区',
     dirTitle: '选择工作区目录',
     dirUse: '使用此目录',
     dirNewFolder: '新建文件夹',
@@ -201,7 +199,7 @@
     newSession: 'New session',
     newSheetTitle: 'New',
     newWorkspaceTitle: 'New workspace',
-    newWorkspaceHint: 'Pick a folder; create the workspace alone or start a session',
+    newWorkspaceHint: 'Pick a folder; the workspace and its session are created together',
     newSessionHint: 'Pick an existing workspace',
     createWsAndSession: 'Create workspace and session',
     wsPendingBadge: 'New',
@@ -303,8 +301,6 @@
     archive: 'Archive this session',
     archived: 'Archived',
     archiveFail: 'Archive failed',
-    wsNew: '➕ New workspace…',
-    wsNewHint: 'Pick a folder to register as a workspace',
     dirTitle: 'Pick workspace folder',
     dirUse: 'Use this folder',
     dirNewFolder: 'New folder',
@@ -1414,7 +1410,10 @@
             // primary action.
             var gCta = el('button', 'btn-primary empty-cta', T.emptyCta)
             gCta.setAttribute('type', 'button')
-            gCta.addEventListener('click', function () { openCreateSheet(g.ws ? g.ws.workspaceId : null, null, null, 'session') })
+            gCta.addEventListener('click', function () {
+              if (g.ws) openCreateSheet(g.ws.workspaceId, null, null, 'session')
+              else openNewSheet()
+            })
             box.appendChild(gCta)
           }
           for (var j = 0; j < g.items.length; j++) {
@@ -1595,7 +1594,7 @@
   // 新建入口：先选「新建工作区」还是「新建会话」。零工作区时没有可选会话，
   // 直接进新建工作区流程。
   function openNewSheet() {
-    if (!state.workspaces.length) { openCreateSheet(null, null, null, 'workspace'); return }
+    if (state.wsReady && !state.workspaces.length) { openCreateSheet(null, null, null, 'workspace'); return }
     openSheet(function (/** @type {any} */ sheet) {
       sheet.appendChild(el('div', 'sheet-title', T.newSheetTitle))
       var wsBtn = el('button', 'sheet-item')
@@ -1787,9 +1786,10 @@
           sheet.textContent = ''
           sheet.appendChild(el('div', 'sheet-title', T.dirTitle))
           sheet.appendChild(el('div', 'sheet-empty', T.dirFail))
-          var back = el('button', 'btn-ghost cs-create', T.dirBack)
+          var back = el('button', 'btn-ghost cs-create', T.close)
           back.addEventListener('click', function () {
-            openCreateSheet(chosen.ws && chosen.ws.workspaceId, chosen.perm, chosen.ws && chosen.ws.pendingPath ? chosen.ws : null, 'workspace')
+            // 目录读不到时回不去“上一步”（再进目录还是会失败），直接关面板重试。
+            closeSheet()
           })
           sheet.appendChild(back)
         })

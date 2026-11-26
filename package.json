@@ -42,7 +42,10 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "test": "node --test"
+    "test": "node --test",
+    "test:cov": "npm run test:cov:core && npm run test:cov:app",
+    "test:cov:core": "node --experimental-test-coverage --test-coverage-include=\"lib/**/*.js\" --test-coverage-include=\"client/**/*.js\" --test-coverage-lines=96 --test-coverage-branches=86 --test-coverage-functions=92 --test",
+    "test:cov:app": "node --experimental-test-coverage --test-coverage-include=\"mobile/app.js\" --test-coverage-lines=58 --test-coverage-branches=47 --test-coverage-functions=56 --test test/dom-smoke.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

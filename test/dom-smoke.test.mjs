@@ -3,12 +3,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import vm from 'node:vm'
+import { fileURLToPath } from 'node:url'
 import { JSDOM, VirtualConsole } from 'jsdom'
 
 const html = fs.readFileSync(new URL('../mobile/index.html', import.meta.url), 'utf8')
 const appSource = fs.readFileSync(new URL('../mobile/app.js', import.meta.url), 'utf8')
 const mdSource = fs.readFileSync(new URL('../mobile/vendor/markdown-it.min.js', import.meta.url), 'utf8')
 const cjkSource = fs.readFileSync(new URL('../mobile/vendor/markdown-it-cjk-friendly.min.js', import.meta.url), 'utf8')
+const appPath = fileURLToPath(new URL('../mobile/app.js', import.meta.url))
+const mdPath = fileURLToPath(new URL('../mobile/vendor/markdown-it.min.js', import.meta.url))
+const cjkPath = fileURLToPath(new URL('../mobile/vendor/markdown-it-cjk-friendly.min.js', import.meta.url))
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 async function waitFor(predicate, timeout = 2000) {
@@ -96,9 +101,10 @@ function createApp() {
   }
   const WS = makeWebSocketClass()
   window.WebSocket = WS
-  window.eval(mdSource)
-  window.eval(cjkSource)
-  window.eval(appSource)
+  const context = dom.getInternalVMContext()
+  vm.runInContext(mdSource, context, { filename: mdPath })
+  vm.runInContext(cjkSource, context, { filename: cjkPath })
+  vm.runInContext(appSource, context, { filename: appPath })
 
   const ws = WS.instances[0]
   assert.ok(ws, 'app should open one mux socket')

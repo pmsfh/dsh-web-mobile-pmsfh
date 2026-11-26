@@ -5,8 +5,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vm from 'node:vm'
+import { fileURLToPath } from 'node:url'
 
 const source = fs.readFileSync(new URL('../client/client.js', import.meta.url), 'utf8')
+const sourcePath = fileURLToPath(new URL('../client/client.js', import.meta.url))
 const LEGACY_KEY = 'dsh-web-mobile-pmsfh:desktop'
 
 function storage(initial = {}) {
@@ -84,7 +86,7 @@ function loadClient(options = {}) {
       exported = registration.factory(() => {})
     },
   }
-  vm.runInNewContext(source, sandbox, { filename: 'client/client.js' })
+  vm.runInNewContext(source, sandbox, { filename: sourcePath })
   assert.ok(exported, 'client bundle should register through __ModuleLoader__')
   exported.apply()
   return { calls, warnings, bodyChildren, elements, localStorage, sessionStorage, exported }

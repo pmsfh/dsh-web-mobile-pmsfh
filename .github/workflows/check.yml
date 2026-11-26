@@ -36,4 +36,4 @@ jobs:
         run: npm run typecheck
 
       - name: 测试
-        run: npm test
+        run: npm run test:cov

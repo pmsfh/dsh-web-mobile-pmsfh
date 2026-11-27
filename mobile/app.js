@@ -121,7 +121,7 @@
     fileTooBig: '文件过大（上限 8 MB）',
     detach: '移除',
     logout: '退出登录',
-    account: '账户',
+    settings: '设置',
     downloadFail: '下载失败',
     noFiles: '工作区没有可下载的文件',
     noCwd: '该会话没有工作区',
@@ -177,7 +177,7 @@
     effortDefault: 'Default',
     save: '保存',
     cancel: '取消',
-    // 账户面板「字号与字体」
+    // 设置面板「字号与字体」
     fontSetting: '字号与字体',
     fontSize: '字号',
     fontFamily: '字体',
@@ -266,7 +266,7 @@
     fileTooBig: 'File too large (8 MB limit)',
     detach: 'Remove',
     logout: 'Sign out',
-    account: 'Account',
+    settings: 'Settings',
     downloadFail: 'Download failed',
     noFiles: 'No downloadable files in the workspace',
     noCwd: 'This session has no workspace',
@@ -886,7 +886,7 @@
   }
   loadCollapsed()
 
-  // ── font prefs（账户面板「字号与字体」）──────────────────────
+  // ── font prefs（设置面板「字号与字体」）──────────────────────
   // 纯本机偏好：没有服务端设置接口，落 localStorage。正文基准乘档位倍率 =
   // CSS 变量 --font-scale，字体族换 --font-family；app.css 里只有阅读内容引用
   // 这两个变量，页头、面板等固定区保持裸 px 与系统字体。字体栈与基准
@@ -990,8 +990,8 @@
     }
     if (opts.menu) {
       var mn = el('button', null, '⋯')
-      mn.setAttribute('aria-label', T.account)
-      mn.addEventListener('click', openAccountSheet)
+      mn.setAttribute('aria-label', T.settings)
+      mn.addEventListener('click', openSettingsSheet)
       hd.appendChild(mn)
     }
     paintPendingBadge()
@@ -1017,16 +1017,16 @@
       .then(function (v) { if (v && v.authenticated === false) gotoLogin() })
       .catch(function () {})
   }
-  // 账户面板：标题 + 「字号与字体」（二级页入口，右侧显示当前档位）+ 「退出登录」。
-  function openAccountSheet() {
-    openSheet(function (/** @type {any} */ sheet) { renderAccountSheet(sheet) }, T.account)
+  // 设置面板：标题 + 「字号与字体」（二级页入口，右侧显示当前档位）+ 「退出登录」。
+  function openSettingsSheet() {
+    openSheet(function (/** @type {any} */ sheet) { renderSettingsSheet(sheet) }, T.settings)
   }
   /** @param {any} sheet */
-  function renderAccountSheet(sheet) {
+  function renderSettingsSheet(sheet) {
     sheet.textContent = ''
     sheet.__sheetBack = null
-    retargetSheet(sheet, T.account)
-    sheet.appendChild(el('div', 'sheet-title', T.account))
+    retargetSheet(sheet, T.settings)
+    sheet.appendChild(el('div', 'sheet-title', T.settings))
     var font = el('button', 'sheet-item si-row')
     font.setAttribute('type', 'button')
     font.appendChild(el('span', 'si-label', T.fontSetting))
@@ -1048,7 +1048,7 @@
     })
     sheet.appendChild(out)
   }
-  // 原地切换子页（账户 ⇄ 字号与字体）：对话框的可访问名称挂在 .sheet 壳上，
+  // 原地切换子页（设置 ⇄ 字号与字体）：对话框的可访问名称挂在 .sheet 壳上，
   // 跟着内容换；焦点挪回壳上，读屏会重新播报面板名。
   /** @param {any} sheet @param {string} label */
   function retargetSheet(sheet, label) {
@@ -1057,20 +1057,20 @@
     box.setAttribute('aria-label', label)
     try { box.focus({ preventScroll: true }) } catch (/** @type {any} */ e) { box.focus() }
   }
-  // 字号与字体：账户面板的二级页，复用同一面板壳原地重渲染（模型面板同款）。
+  // 字号与字体：设置面板的二级页，复用同一面板壳原地重渲染（模型面板同款）。
   // 选中即生效并落盘，面板不关，方便对着预览多试几档；面板自身字号与字体固定。
   /** @param {any} sheet */
   function renderFontSheet(sheet) {
     sheet.textContent = ''
     sheet.scrollTop = 0
-    // 登记给面板壳：Esc 先退回账户页（openSheet 的 onEscape），再按一次才关。
-    sheet.__sheetBack = function () { renderAccountSheet(sheet) }
+    // 登记给面板壳：Esc 先退回设置页（openSheet 的 onEscape），再按一次才关。
+    sheet.__sheetBack = function () { renderSettingsSheet(sheet) }
     retargetSheet(sheet, T.fontSetting)
 
     var nav = el('div', 'sheet-nav')
-    var back = el('button', 'sheet-back', '‹ ' + T.account)
+    var back = el('button', 'sheet-back', '‹ ' + T.settings)
     back.setAttribute('type', 'button')
-    back.addEventListener('click', function () { renderAccountSheet(sheet) })
+    back.addEventListener('click', function () { renderSettingsSheet(sheet) })
     nav.appendChild(back)
     nav.appendChild(el('div', 'sheet-nav-title', T.fontSetting))
     sheet.appendChild(nav)

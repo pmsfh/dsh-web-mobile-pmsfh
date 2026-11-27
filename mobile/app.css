@@ -17,7 +17,7 @@
   --bubble-user: #2563eb;
   --bubble-user-text: #ffffff;
   --header-h: calc(52px + env(safe-area-inset-top, 0px));
-  /* 字号与字体（账户面板）：app.js 按本机设置覆盖 --font-scale 与 --font-family。
+  /* 字号与字体（设置面板）：app.js 按本机设置覆盖 --font-scale 与 --font-family。
      正文基准与三个字体栈只在这里写一次：--font-base 是各档读数与阅读内容的
      基准，--font-<id> 是字体族的唯一来源（app.js 只存 id、按 var() 引用）。
      只有阅读内容引用 --font-scale / --font-family；页头、按钮、面板等固定区
@@ -818,7 +818,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
 .btn-primary:disabled { background: var(--border); color: var(--text3); }
 .btn-ghost { border: 1px solid var(--border); background: transparent; color: var(--text2); }
 
-/* ── font settings sheet（账户面板的二级页）────────────────────
+/* ── font settings sheet（设置面板的二级页）────────────────────
    面板自身字号固定：本节所有 px 都不乘 --font-scale，免得选档时面板自己
    跟着变大变小。只有预览正文 .fs-pv-body 随档位，各档右侧的 Aa 以该档
    正文实际大小显示（.fs-opt[data-scale]），两者都是用来看效果的。 */

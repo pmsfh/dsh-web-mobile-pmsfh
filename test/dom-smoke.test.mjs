@@ -414,7 +414,7 @@ test('markdown keeps raw HTML, javascript: and data: links inert', async (t) => 
   assert.deepEqual(app.errors, [])
 })
 
-// ── 字号与字体（账户面板二级页）────────────────────────────────
+// ── 字号与字体（设置面板二级页）────────────────────────────────
 // 界面语言跟随 navigator.language，jsdom 下是 en-US，断言用英文词条。
 const FONT_KEY = 'dsh-web-mobile-pmsfh:font'
 const cssVar = (app, name) => app.document.documentElement.style.getPropertyValue(name)
@@ -425,22 +425,22 @@ const tabStops = (root, selector) => [...root.querySelectorAll(selector)].filter
 
 async function openFontPanel(app) {
   await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
-  app.document.querySelector('.hd button[aria-label="Account"]').click()
+  app.document.querySelector('.hd button[aria-label="Settings"]').click()
   await waitFor(() => app.document.querySelector('.sheet .si-row'))
   app.document.querySelector('.sheet .si-row').click()
   await waitFor(() => app.document.querySelectorAll('.sheet .fs-opt').length === 5)
   return app.document.querySelector('.sheet')
 }
 
-test('account sheet lists the font entry above sign-out and re-renders in place', async (t) => {
+test('settings sheet lists the font entry above sign-out and re-renders in place', async (t) => {
   const app = createApp()
   t.after(() => app.dom.window.close())
   await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
-  app.document.querySelector('.hd button[aria-label="Account"]').click()
+  app.document.querySelector('.hd button[aria-label="Settings"]').click()
   await waitFor(() => app.document.querySelector('.sheet .si-row'))
 
   const sheet = app.document.querySelector('.sheet')
-  assert.equal(sheet.getAttribute('aria-label'), 'Account')
+  assert.equal(sheet.getAttribute('aria-label'), 'Settings')
   const rows = [...sheet.querySelectorAll('.sheet-item')]
   assert.equal(rows.length, 2)
   assert.ok(rows[0].classList.contains('si-row'), 'font entry comes first')
@@ -456,7 +456,7 @@ test('account sheet lists the font entry above sign-out and re-renders in place'
   assert.equal(sheet.getAttribute('aria-label'), 'Font & size')
   assert.equal(app.document.activeElement, sheet, 'focus lands on the re-labelled dialog')
   assert.equal(sheet.querySelector('.sheet-nav-title').textContent, 'Font & size')
-  assert.equal(sheet.querySelector('.sheet-back').textContent, '‹ Account')
+  assert.equal(sheet.querySelector('.sheet-back').textContent, '‹ Settings')
   assert.deepEqual(
     [...sheet.querySelectorAll('.fs-opt')].map((node) => [
       node.getAttribute('data-scale'), node.getAttribute('role'), node.getAttribute('aria-checked'),
@@ -493,7 +493,7 @@ test('account sheet lists the font entry above sign-out and re-renders in place'
   sheet.querySelector('.sheet-back').click()
   await waitFor(() => app.document.querySelector('.sheet .si-row'))
   assert.equal(app.document.querySelectorAll('.fs-opt').length, 0)
-  assert.equal(sheet.getAttribute('aria-label'), 'Account')
+  assert.equal(sheet.getAttribute('aria-label'), 'Settings')
   assert.deepEqual(app.errors, [])
 })
 
@@ -525,7 +525,7 @@ test('picking a size or family applies at once, keeps the panel open and persist
   assert.equal(sheet.querySelector('.fs-chip.on').getAttribute('data-family'), 'serif')
   assert.equal(sheet.querySelector('.fs-status').textContent, 'Saved on this device · Large · 16.9px · Serif')
 
-  // Back on the account page the entry row mirrors the new setting.
+  // Back on the settings page the entry row mirrors the new setting.
   sheet.querySelector('.sheet-back').click()
   const value = app.document.querySelector('.sheet .si-value')
   assert.equal(value.textContent, 'Large · 16.9px · Serif')
@@ -551,7 +551,7 @@ test('saved font prefs apply at boot; anything outside the whitelist falls back 
   assert.deepEqual(tabStops(sheet, '.fs-chip'), ['mono'])
   assert.deepEqual(good.errors, [])
 
-  // [stored value, expected account-row label]: scale must be one of the five preset
+  // [stored value, expected settings-row label]: scale must be one of the five preset
   // numbers, family one of the three ids; each field falls back on its own.
   const dirty = [
     ['{"scale":1.07,"family":"comic"}', 'Default · 15.0px'],
@@ -565,7 +565,7 @@ test('saved font prefs apply at boot; anything outside the whitelist falls back 
     const app = createApp({ storage: { [FONT_KEY]: raw } })
     t.after(() => app.dom.window.close())
     await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
-    app.document.querySelector('.hd button[aria-label="Account"]').click()
+    app.document.querySelector('.hd button[aria-label="Settings"]').click()
     await waitFor(() => app.document.querySelector('.sheet .si-value'))
     assert.equal(app.document.querySelector('.sheet .si-value').textContent, label, raw)
     assert.equal(cssVar(app, '--font-family'), label.endsWith('Serif') ? 'var(--font-serif)' : 'var(--font-sans)', raw)
@@ -685,12 +685,12 @@ test('Escape steps back from the font page before it closes the panel', async (t
   const sheet = await openFontPanel(app)
   const escape = () => app.document.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
 
-  // First Esc: back to the account page, same shell, nothing closed.
+  // First Esc: back to the settings page, same shell, nothing closed.
   escape()
   await waitFor(() => app.document.querySelector('.sheet .si-row'))
   assert.equal(app.document.querySelector('.sheet'), sheet, 'same shell — still open')
   assert.equal(sheet.querySelectorAll('.fs-opt').length, 0)
-  assert.equal(sheet.getAttribute('aria-label'), 'Account')
+  assert.equal(sheet.getAttribute('aria-label'), 'Settings')
   assert.equal(app.document.getElementById('app').inert, true)
 
   // Second Esc: closes, as on any other panel.
@@ -710,7 +710,7 @@ test('the base text size lives in the stylesheet alone; readouts and rendering f
   const app = createApp({ cssVars: { '--font-base': '16px' } })
   t.after(() => app.dom.window.close())
   await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
-  app.document.querySelector('.hd button[aria-label="Account"]').click()
+  app.document.querySelector('.hd button[aria-label="Settings"]').click()
   await waitFor(() => app.document.querySelector('.sheet .si-row'))
   assert.equal(app.document.querySelector('.sheet .si-value').textContent, 'Default · 16.0px')
   app.document.querySelector('.sheet .si-row').click()
@@ -952,7 +952,7 @@ test('a toast stays readable while a sheet is open', async (t) => {
   t.after(() => app.dom.window.close())
   await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
 
-  ;[...app.document.querySelectorAll('.hd button')].find((b) => /Account|账户/.test(b.getAttribute('aria-label') || '')).click()
+  ;[...app.document.querySelectorAll('.hd button')].find((b) => /Settings|设置/.test(b.getAttribute('aria-label') || '')).click()
   await waitFor(() => app.document.querySelector('.sheet'))
   assert.equal(app.document.getElementById('app').getAttribute('aria-hidden'), 'true', 'background is hidden from assistive tech')
 

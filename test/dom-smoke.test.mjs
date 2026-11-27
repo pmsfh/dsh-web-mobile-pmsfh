@@ -388,6 +388,7 @@ test('markdown keeps raw HTML, javascript: and data: links inert', async (t) => 
     '<img src=x onerror="window.__xss=1">',
     '[js](javascript:alert(1))',
     '[data](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)',
+    '![pic](https://example.com/a.png)',
   ].join('\n')
   emitSnapshot(app, [
     {
@@ -403,6 +404,9 @@ test('markdown keeps raw HTML, javascript: and data: links inert', async (t) => 
   assert.ok(markdown.querySelector('strong'))
   assert.equal(markdown.querySelector('a[href="https://example.com"]').textContent, 'ok')
   assert.equal(markdown.querySelectorAll('img').length, 0)
+  const remote = markdown.querySelector('a[href="https://example.com/a.png"]')
+  assert.ok(remote, 'remote image renders as a plain link')
+  assert.equal(remote.textContent, 'pic')
   assert.equal(markdown.querySelectorAll('a[href^="javascript:"]').length, 0)
   assert.equal(markdown.querySelectorAll('a[href^="data:"]').length, 0)
   assert.match(markdown.textContent, /<img src=x/)

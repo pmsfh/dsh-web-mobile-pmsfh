@@ -112,7 +112,7 @@ test('static assets carry nosniff, an ETag and the expected cache policy', async
 
   const vendor = await call(routes.get('/dsh-web-mobile-pmsfh/vendor/markdown-it.min.js'))
   assert.equal(vendor.status, 200)
-  assert.equal(vendor.headers['cache-control'], 'public, max-age=2592000, immutable')
+  assert.equal(vendor.headers['cache-control'], 'no-cache')
   assert.equal(vendor.headers['x-content-type-options'], 'nosniff')
 })
 
@@ -123,6 +123,8 @@ test('HTML response keeps CSP, nosniff and the language vary', async () => {
   })
   assert.equal(res.status, 200)
   assert.match(res.headers['content-security-policy'], /frame-ancestors 'none'/)
+  assert.match(res.headers['content-security-policy'], /img-src 'self' data:;/)
+  assert.doesNotMatch(res.headers['content-security-policy'], /img-src [^;]*https:/)
   assert.equal(res.headers['x-content-type-options'], 'nosniff')
   assert.equal(res.headers.vary, 'accept-language')
   assert.match(res.body, /<html lang="en">/)

@@ -352,6 +352,15 @@
       if (cjk) md.use(cjk.default || cjk)
       // Defence in depth: only web/mail links may become anchors/images.
       md.validateLink = /** @param {*} url @returns {boolean} */ function (url) { return /^(https?:|mailto:)/i.test(String(url || '')) }
+      // 外链图片不当图片加载：回复里的 ![](https://…) 会变成可点的链接，避免
+      // 追踪像素暴露访问者 IP（CSP 的 img-src 只放行 self 与 data:）。
+      md.renderer.rules.image = function (/** @type {any} */ tokens, /** @type {any} */ idx, /** @type {any} */ options, /** @type {any} */ env, /** @type {any} */ self) {
+        var token = tokens[idx]
+        var src = token.attrGet('src') || ''
+        if (!/^https?:/i.test(src)) return self.renderToken(tokens, idx, options)
+        var alt = self.renderInlineAsText(token.children || [], options, env)
+        return '<a href="' + md.utils.escapeHtml(src) + '" rel="noopener noreferrer">' + md.utils.escapeHtml(alt || src) + '</a>'
+      }
     }
   } catch (e) { console.error('[md init]', e) }
   /** @param {*} text @returns {string | null} */

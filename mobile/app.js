@@ -1348,7 +1348,7 @@
       em.appendChild(el('div', null, T.empty))
       // B1: the first screen should offer the primary action, not just point
       // at the header's ＋ — mirror it with a real button.
-      var emptyBtn = el('button', 'btn-primary empty-cta', state.workspaces.length ? T.emptyCta : T.newWorkspaceTitle)
+      var emptyBtn = el('button', 'btn-primary empty-cta', T.newWorkspaceTitle)
       emptyBtn.setAttribute('type', 'button')
       emptyBtn.addEventListener('click', function () { openNewSheet() })
       em.appendChild(emptyBtn)
@@ -1758,9 +1758,7 @@
           // Review: state WHAT is missing — entering from an empty-group CTA
           // has the workspace preselected, so a blanket "pick both" lie; with
           // zero workspaces there is nothing to pick, point at creating one.
-          if (!chosen.ws && !chosen.perm) {
-            createHint.textContent = state.workspaces.length ? T.createWhy : T.createWhyNewWs
-          } else if (!chosen.ws) {
+          if (!chosen.ws) {
             createHint.textContent = state.workspaces.length ? T.createWhyWs : T.createWhyNewWs
           } else {
             createHint.textContent = T.createWhyPerm

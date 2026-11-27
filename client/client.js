@@ -25,7 +25,9 @@ window.__ModuleLoader__.load({
     exports.inject = []
     exports.apply = function () {
       try {
-        if (location.pathname.indexOf('/dsh-web-mobile-pmsfh') === 0) return
+        var path = location.pathname
+        // 只认插件自己的路径段：/dsh-web-mobile-pmsfh-foo 是别的页面，仍要跳转。
+        if (path === '/dsh-web-mobile-pmsfh' || path.indexOf('/dsh-web-mobile-pmsfh/') === 0) return
         // Remove the legacy permanent escape flag (one-way lock from v2.0/v2.1)
         try { localStorage.removeItem('dsh-web-mobile-pmsfh:desktop') } catch (e) {}
         var escaped = false

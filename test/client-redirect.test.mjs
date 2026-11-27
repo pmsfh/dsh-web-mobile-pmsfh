@@ -138,6 +138,15 @@ test('does nothing on the mobile page itself', () => {
   const r = loadClient({ pathname: '/dsh-web-mobile-pmsfh/', coarse: true, narrow: true })
   assert.deepEqual(r.calls, [])
   assert.equal(r.bodyChildren.length, 0)
+
+  const bare = loadClient({ pathname: '/dsh-web-mobile-pmsfh', coarse: true, narrow: true })
+  assert.deepEqual(bare.calls, [])
+})
+
+test('treats a look-alike path as the desktop UI', () => {
+  const r = loadClient({ pathname: '/dsh-web-mobile-pmsfh-preview/', coarse: true, narrow: true })
+  assert.deepEqual(r.calls, ['/dsh-web-mobile-pmsfh/'])
+  assert.equal(r.bodyChildren.length, 0)
 })
 
 test('clears the legacy permanent flag on the official UI', () => {

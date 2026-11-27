@@ -28,6 +28,7 @@
     },
     "./client": "./client/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
+    "./types.d.ts": "./types.d.ts",
     "./package.json": "./package.json"
   },
   "dsh": {

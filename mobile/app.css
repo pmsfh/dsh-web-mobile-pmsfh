@@ -421,7 +421,7 @@ html, body {
   padding: 1px 5px;
   border-radius: 6px;
   background: var(--accent-weak);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: calc(13px * var(--font-scale));
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -518,7 +518,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: calc(12px * var(--font-scale));
   color: var(--text3);
 }
@@ -534,7 +534,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   padding: 8px 10px;
   border-radius: 8px;
   background: rgba(127, 127, 127, 0.12);
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: calc(12px * var(--font-scale));
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1009,7 +1009,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
 .ap-tool {
   color: var(--text3);
   font-size: 12px;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   margin-bottom: 10px;
 }
 .ap-args-wrap {
@@ -1039,7 +1039,7 @@ details.reasoning[open] summary::before { content: '▾ '; }
   border-radius: 0 0 9px 9px;
   background: rgba(127, 127, 127, 0.12);
   color: var(--text);
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: calc(12px * var(--font-scale));
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1121,7 +1121,6 @@ details.reasoning[open] summary::before { content: '▾ '; }
 /* ── workspace management (v2.5: create / rename / delete) ─── */
 .sheet-item.danger { color: var(--danger); }
 .btn-danger { background: var(--danger); }
-.cs-ws-new { border-style: dashed; }
 .dir-path { margin: 0 2px 6px; white-space: normal; word-break: break-all; }
 .dir-row { min-height: 44px; padding: 8px 14px; }
 .dir-newform { display: flex; gap: 8px; margin-top: 6px; align-items: center; }

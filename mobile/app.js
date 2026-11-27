@@ -2732,6 +2732,13 @@
       }).catch(function (e) {
         console.error('[prompt]', e)
         toast(T.sendFail)
+        // 没发出去的文字放回输入框；用户若已开始打新的，不覆盖。
+        if (!input.value) {
+          input.value = text
+          state.drafts[sessionId] = text
+          autoGrowInput(input)
+          paintComposer()
+        }
       })
       paintComposer()
     })
@@ -2827,6 +2834,29 @@
     }, T.attachTitle)
   }
 
+  // 分块转 base64：readAsDataURL 会先造一份带前缀的完整字符串，再 split 出第二份，
+  // 8 MB 文件在低端机上瞬时有三份全文。这里用 32 KB 分块 btoa，只在最后拼一次。
+  // 必须是 3 的倍数：每块单独 btoa 时，除最后一块外不能出现 '=' 填充，
+  // 否则拼接后的字符串在第一个 '=' 处就解不完整了。
+  var B64_CHUNK = 0x7ffe // 32766 = 3 × 10922
+  /** @param {any} file @param {(b64: string) => void} onOk @param {() => void} onFail */
+  function fileToBase64(file, onOk, onFail) {
+    var fr = new FileReader()
+    fr.onload = function () {
+      try {
+        var bytes = new Uint8Array(/** @type {ArrayBuffer} */ (fr.result))
+        var parts = []
+        for (var i = 0; i < bytes.length; i += B64_CHUNK) {
+          var chunk = bytes.subarray(i, Math.min(i + B64_CHUNK, bytes.length))
+          parts.push(btoa(String.fromCharCode.apply(null, Array.from(chunk))))
+        }
+        onOk(parts.join(''))
+      } catch (e) { onFail() }
+    }
+    fr.onerror = onFail
+    fr.readAsArrayBuffer(file)
+  }
+
   function pickAndUpload(/** @type {any} */ sessionId) {
     var inp = document.createElement('input')
     inp.type = 'file'
@@ -2836,21 +2866,18 @@
       if (!f) return
       if (f.size > MAX_ATTACH_BYTES) { toast(T.fileTooBig); return }
       toast(T.uploading)
-      var fr = new FileReader()
-      fr.onload = function () {
-        var b64 = String(fr.result || '').split(',')[1] || ''
+      fileToBase64(f, function (b64) {
         rpc('fileUploads/upload', { agentId: sessionId, request: { data: b64, name: f.name } })
           .then(function (/** @type {FileUploadResult} */ v) {
+            b64 = '' // 请求体已交出，尽早释放这份全文
             if (!v || !v.receiptId) { toast(T.uploadFail); return }
             attachList(sessionId).push({ receiptId: v.receiptId, name: f.name })
             paintAttachChips(sessionId)
             paintComposer()
             toast(T.uploaded + f.name)
           })
-          .catch(function (e) { console.error('[upload]', e); toast(T.uploadFail) })
-      }
-      fr.onerror = function () { toast(T.uploadFail) }
-      fr.readAsDataURL(f)
+          .catch(function (e) { b64 = ''; console.error('[upload]', e); toast(T.uploadFail) })
+      }, function () { toast(T.uploadFail) })
     })
     inp.click()
   }
@@ -3537,6 +3564,9 @@
       for (var i = 0; i < hs.length; i++) hs[i](frame, meta || null)
     },
     pending: function () { return pendingItems() },
+    encodeFile: function (/** @type {any} */ file, /** @type {any} */ ok, /** @type {any} */ fail) {
+      fileToBase64(file, ok, fail)
+    },
   }
 
   // ── boot ────────────────────────────────────────────────────

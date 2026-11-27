@@ -895,3 +895,45 @@ test('sending clears the draft so a rebuild does not bring it back', async (t) =
   assert.equal(app.document.querySelector('.c-input').value, '')
   assert.deepEqual(app.errors, [])
 })
+
+test('a failed send puts the text back in the composer', async (t) => {
+  const app = createApp({ rpc: { '/api/session/prompt': () => ({ __error: 'boom' }) } })
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  await openChat(app)
+  emitSnapshot(app, [])
+  await waitFor(() => app.document.querySelector('.c-input'))
+
+  const input = app.document.querySelector('.c-input')
+  input.value = '发不出去的话'
+  input.dispatchEvent(new app.window.Event('input', { bubbles: true }))
+  app.document.querySelector('.c-send').click()
+  await waitFor(() => input.value === '发不出去的话')
+
+  assert.equal(app.document.querySelector('.c-send').disabled, false)
+  // 重建后草稿也还在
+  emitSnapshot(app, [])
+  await waitFor(() => app.document.querySelector('.c-input'))
+  assert.equal(app.document.querySelector('.c-input').value, '发不出去的话')
+})
+
+test('file bytes encode to base64 across chunk boundaries', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+
+  const small = new app.window.File(['hello world'], 'a.txt')
+  const smallB64 = await new Promise((resolve, reject) => {
+    app.window.__dshwm.encodeFile(small, resolve, () => reject(new Error('encode failed')))
+  })
+  assert.equal(smallB64, 'aGVsbG8gd29ybGQ=')
+
+  const bytes = new Uint8Array(100000).fill(65)
+  const big = new app.window.File([bytes.buffer], 'big.bin')
+  const bigB64 = await new Promise((resolve, reject) => {
+    app.window.__dshwm.encodeFile(big, resolve, () => reject(new Error('encode failed')))
+  })
+  const decoded = Buffer.from(bigB64, 'base64')
+  assert.equal(decoded.length, bytes.length)
+  assert.equal(decoded[0], 65)
+  assert.equal(decoded[bytes.length - 1], 65)
+})

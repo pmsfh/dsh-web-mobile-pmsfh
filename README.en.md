@@ -21,12 +21,14 @@ official code.
 - **Sessions**: grouped by workspace and collapsible, plus "Ungrouped"; create,
   rename, and delete workspaces — deleting only removes a workspace from the
   list, keeping the directory and session records, and its sessions move to
-  "Ungrouped"; long-press a session to archive it; creating a session picks the
-  workspace through an inline directory browser and a permission level (Read
-  Only / Workspace Write / Full access; the Full access option carries the
-  risk tone and requires a risk confirmation, and a disabled create button
-  states why); empty session list and empty workspace groups carry a
-  "New session" button
+  "Ungrouped"; long-press a session to archive it; the header plus and the
+  empty-state button first ask whether to create a workspace or a session —
+  a new workspace picks its folder through an inline directory browser and is
+  created together with its session, while a new session only picks an existing
+  workspace; permission defaults to "Workspace Write" (Read Only / Workspace
+  Write / Full access; the Full access option carries the risk tone and
+  requires a risk confirmation, and a disabled create button states why); with
+  no workspace only the workspace path is offered
 - **Conversations**: streaming output, collapsible reasoning, a notice when
   context is compacted; markdown and code block rendering, stop while
   generating, queued messages stay visible, paginated history as you scroll up,

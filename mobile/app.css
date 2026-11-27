@@ -7,7 +7,7 @@
   --surface: #ffffff;
   --text: #1b1d21;
   --text2: #5b6068;
-  --text3: #969ca6;
+  --text3: #666f7b;
   --border: rgba(0, 0, 0, 0.08);
   --accent: #2563eb;
   --accent-weak: rgba(37, 99, 235, 0.1);
@@ -36,7 +36,7 @@
     --surface: #1a1c20;
     --text: #e8eaed;
     --text2: #a6acb5;
-    --text3: #6e747e;
+    --text3: #8b93a1;
     --border: rgba(255, 255, 255, 0.1);
     --accent: #5b8def;
     --accent-weak: rgba(91, 141, 239, 0.18);
@@ -1171,6 +1171,11 @@ details.reasoning[open] summary::before { content: '▾ '; }
   outline: none;
 }
 .q-custom:focus { border-color: var(--accent); }
+/* iOS Safari 会给字号小于 16px 的输入框自动放大整页；这里对触屏 Safari 兜底
+   到 16px，桌面与 Android 不受影响（它们的字仍然随档位）。 */
+@supports (-webkit-touch-callout: none) {
+  .c-input, .q-custom { font-size: max(16px, calc(var(--font-base) * var(--font-scale))); }
+}
 
 /* toast */
 .mtoast {

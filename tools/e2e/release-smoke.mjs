@@ -65,13 +65,14 @@ async function openList(page) {
   await page.goto(`${BASE}/dsh-web-mobile-pmsfh/`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#app', { timeout: 15000 })
   await page.waitForFunction(
-    () => document.querySelectorAll('.srow').length > 0 || !!document.querySelector('.empty') || !!document.querySelector('.err'),
+    () => !!document.querySelector('.srow, .ws-group, .empty, .err'),
     null,
     { timeout: 15000 },
   )
   if (await page.locator('.err').count()) throw new Error(`list error: ${await page.locator('.err').innerText()}`)
   const rows = await page.locator('.srow').count()
-  check('list renders', rows > 0 || (await page.locator('.empty').count()) > 0, `${rows} rows`)
+  const groups = await page.locator('.ws-group').count()
+  check('list renders', rows > 0 || groups > 0 || (await page.locator('.empty').count()) > 0, `${rows} rows / ${groups} groups`)
 }
 
 async function openChat(page) {

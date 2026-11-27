@@ -1205,6 +1205,11 @@ details.reasoning[open] summary::before { content: '▾ '; }
   font-size: calc(13px * var(--font-scale));
 }
 .loading { padding: 40px; text-align: center; color: var(--text3); }
+/* 动效偏好：面板上滑、toast 淡入、分组折叠箭头在减少动效时都直接到位。 */
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .cs-confirm, .mtoast, .ws-chev { animation: none; transition: none; }
+}
+
 .desktop-link {
   display: block;
   padding: 18px 0 8px;

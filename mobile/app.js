@@ -2557,6 +2557,9 @@
       /** @type {any} */
       var node = kids[k]
       if (node.__modalMask) continue
+      // Toast 是面板打开时唯一的即时反馈（上传中、复制成功…）：别把它一起
+      // inert/aria-hidden，否则读屏听不到。
+      if (node.classList && node.classList.contains('mtoast')) continue
       setInertState(node, !!top)
     }
   }
@@ -3042,7 +3045,7 @@
     sheet.textContent = ''
     sheet.appendChild(el('div', 'sheet-empty', T.modelLoading))
     rpc('session.models', {}).then(function (v) {
-        if (!sheetEl || !sheet.isConnected) return // sheet closed meanwhile
+        if (!sheet.isConnected) return // sheet closed or replaced meanwhile
         state.modelCatalog = v || state.modelCatalog
         sheet.textContent = ''
         var groups = (v && v.groups) || []
@@ -3136,7 +3139,8 @@
         }
         sheet.scrollTop = keepTop
       }).catch(function (e) {
-        if (!sheetEl) return
+        // 面板可能已经被关掉或换成别的面板：只认这一份内容节点还在不在。
+        if (!sheet.isConnected) return
         renderModelError(sheet, sessionId, e)
       })
   }
@@ -3562,6 +3566,7 @@
       for (var i = 0; i < hs.length; i++) hs[i](frame, meta || null)
     },
     pending: function () { return pendingItems() },
+    toast: function (/** @type {any} */ text) { toast(text) },
     encodeFile: function (/** @type {any} */ file, /** @type {any} */ ok, /** @type {any} */ fail) {
       fileToBase64(file, ok, fail)
     },

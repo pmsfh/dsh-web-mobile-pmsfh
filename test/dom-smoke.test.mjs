@@ -937,3 +937,19 @@ test('file bytes encode to base64 across chunk boundaries', async (t) => {
   assert.equal(decoded[0], 65)
   assert.equal(decoded[bytes.length - 1], 65)
 })
+
+test('a toast stays readable while a sheet is open', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+
+  ;[...app.document.querySelectorAll('.hd button')].find((b) => /Account|账户/.test(b.getAttribute('aria-label') || '')).click()
+  await waitFor(() => app.document.querySelector('.sheet'))
+  assert.equal(app.document.getElementById('app').getAttribute('aria-hidden'), 'true', 'background is hidden from assistive tech')
+
+  app.window.__dshwm.toast('上传中')
+  const toast = app.document.querySelector('.mtoast')
+  assert.equal(toast.textContent, '上传中')
+  assert.equal(toast.hasAttribute('aria-hidden'), false, 'toast is not hidden from assistive tech')
+  assert.notEqual(toast.inert, true)
+})

@@ -1034,3 +1034,23 @@ test('tool card header reports its expanded state', async (t) => {
   assert.equal(head.getAttribute('aria-expanded'), 'false')
   assert.deepEqual(app.errors, [])
 })
+
+test('session rows and workspace headers open their menu from the keyboard', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+
+  const row = app.document.querySelector('.srow')
+  assert.equal(row.getAttribute('aria-haspopup'), 'menu')
+  row.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true }))
+  await waitFor(() => app.document.querySelector('.sheet'))
+  assert.match(app.document.querySelector('.sheet').textContent, /Archive this session/)
+  app.document.querySelector('.sheet-close').click()
+  await waitFor(() => !app.document.querySelector('.sheet'))
+
+  const head = app.document.querySelector('.ws-head')
+  head.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true }))
+  await waitFor(() => app.document.querySelector('.sheet'))
+  assert.match(app.document.querySelector('.sheet').textContent, /Rename workspace/)
+  assert.deepEqual(app.errors, [])
+})

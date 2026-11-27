@@ -234,29 +234,80 @@ export type EndpointEntry = [string, EndpointMapper]
 
 export interface ChatState {
   id: string
-  title?: string
+  /** Chat view mounted for this session (list or chat). */
+  app: any
+  /** Session summary captured when the chat opened. */
+  s: any
+  /** Scrolling message column. */
+  box: any
   events: JournalRecord[]
-  cursor?: unknown
-  hasMore?: boolean
-  projections: { values?: Record<string, unknown>; [key: string]: any } | null
-  baseSeq?: number | null
-  running?: boolean
+  /** Snapshot cursor: events past it are the live tail. */
+  cursor: number
+  hasMore: boolean
+  /** Projections object from the follow snapshot. */
+  projections: Projections | null
+  baseSeq: number | null
+  running: boolean
   steps: Record<string, StepState>
   cards: Record<string, ToolCardState>
+  lastAnchor: number | null
+  stick: boolean
+  ignoreScrollUntil: number
+  jump: any
+  olderBtn: any
+  loadingOlder?: boolean
+  maxSeq: number
+  input: any
+  sendBtn: any
+  attachRow: any
+  queueChip: any
+  queueCount: number
+  modelBtn: any
+}
+
+/** Page-level state shared by the list and chat views. */
+export interface AppState {
+  sessions: any[]
+  byId: Record<string, any>
+  titles: Record<string, string>
+  cwds: Record<string, string>
+  archived: Record<string, boolean>
+  workspaces: Workspace[]
+  memberOf: Record<string, string>
+  collapsed: Record<string, boolean>
+  drafts: Record<string, string>
+  view: 'list' | 'chat'
+  wsReady: boolean
+  font: { scale: number; family: string }
+  attachments: Record<string, { receiptId: string; name: string }[]>
+  modelCatalog: any
+}
+
+/** Server projections: known keys typed, unknown ones carried as-is. */
+export interface Projections {
+  values?: Record<string, unknown>
+  modelSelection?: any
   [key: string]: any
 }
 
 export interface StepState {
-  node?: any
-  body?: any
+  node: any
+  body: any
   texts: Record<string, string>
   reasoning: Record<string, string>
-  reasonEl?: any
-  [key: string]: any
+  reasonEl: any
+  reasonDet?: any
+  raf: number
 }
 
 export interface ToolCardState {
-  [key: string]: any
+  node: any
+  name: any
+  sum: any
+  st: any
+  body: any
+  args: string
+  tool: string
 }
 
 // ── client bundle registration protocol (client/) ─────────────

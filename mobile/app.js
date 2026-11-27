@@ -686,7 +686,7 @@
     if (v.type === 'snapshot') {
       if (state.view !== 'chat' || chat.id !== sid) return
       chat.events = mergeSnapshotEvents(chat.events || [], v.records || [], v.cursor)
-      chat.cursor = v.cursor
+      chat.cursor = typeof v.cursor === 'number' ? v.cursor : 0
       chat.hasMore = !!v.hasMore
       chat.projections = (v.projections && v.projections.values) || null
       if (chat.events.length) {
@@ -766,7 +766,8 @@
   }
 
   // ── state ───────────────────────────────────────────────────
-  /** @type {{ sessions: any[], byId: Object.<string, any>, titles: Object.<string, string>, cwds: Object.<string, string>, archived: Object.<string, boolean>, workspaces: Workspace[], memberOf: Object.<string, string>, collapsed: Object.<string, boolean>, view: string, wsReady: boolean, font: { scale: number, family: string }, [key: string]: any }} */
+  /** @typedef {import('../types.d.ts').AppState} AppState */
+  /** @type {AppState} */
   var state = {
     sessions: [],
     byId: Object.create(null),
@@ -780,6 +781,8 @@
     view: 'list',
     wsReady: false, // workspace/follow baseline applied (archived ids known)
     font: { scale: 1, family: 'sans' }, // 正文倍率档位 + 字体族（本机偏好，见 FONT_KEY）
+    modelCatalog: null,
+    attachments: Object.create(null),
   }
 
   // 多个运行中圆点共用同一个呼吸相位：每次渲染后把 animation-delay
@@ -1342,6 +1345,19 @@
     return { wasFired: function () { return fired } }
   }
 
+  // 键盘与读屏的等价入口：聚焦行后按「菜单键」或 Shift+F10 打开同一个操作面板
+  // （长按仍是触屏路径）。
+  /** @param {any} node @param {() => void} open */
+  function attachRowMenuKey(node, open) {
+    node.setAttribute('aria-haspopup', 'menu')
+    node.addEventListener('keydown', function (/** @type {any} */ ev) {
+      if (ev.key === 'ContextMenu' || (ev.shiftKey && ev.key === 'F10')) {
+        ev.preventDefault()
+        open()
+      }
+    })
+  }
+
   // 只在应用自己接管长按的地方屏蔽浏览器原生菜单：会话条目、工作区分组标题，
   // 以及弹层打开时的遮罩（此时原生菜单会盖住归档面板）。列表空白处和页头不拦，
   // 用户仍可用浏览器的分享、重新加载等菜单（2026-11-18 真机反馈）。
@@ -1423,6 +1439,7 @@
           var headLp = g.ws
             ? attachLongPress(head, function () { openWorkspaceSheet(g.ws) })
             : { wasFired: function () { return false } }
+          if (g.ws) attachRowMenuKey(head, function () { openWorkspaceSheet(g.ws) })
           box.appendChild(head)
           if (!g.items.length && !folded) {
             // Empty workspaces are visible since v2.5 (just-created ones must
@@ -1457,6 +1474,7 @@
               // Long-press (>=500ms, no significant move) opens the row sheet
               // (archive); the trailing synthesized tap is swallowed once.
               var rowLp = attachLongPress(row, function () { openSessionSheet(s) })
+              attachRowMenuKey(row, function () { openSessionSheet(s) })
               box.appendChild(row)
             })(g.items[j])
           }
@@ -2390,6 +2408,7 @@
       projections: null, running: !!(s && s.running),
       stick: true, ignoreScrollUntil: 0, jump: null,
       app: app, s: s,
+      input: null, sendBtn: null, attachRow: null, queueChip: null, queueCount: 0, modelBtn: null,
     }
     // rc.1: 历史+实时同源——session/follow 流首帧快照即尾部窗口，之后逐事件推送
     openFollow(id)
@@ -2831,7 +2850,7 @@
   var MAX_ATTACH_BYTES = 8 * 1024 * 1024
 
   function attachList(/** @type {any} */ sessionId) {
-    var m = state.attachments || (state.attachments = Object.create(null))
+    var m = state.attachments
     if (!m[sessionId]) m[sessionId] = []
     return m[sessionId]
   }

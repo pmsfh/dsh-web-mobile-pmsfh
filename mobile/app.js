@@ -753,6 +753,7 @@
     workspaces: [],               // workspace.list items (workspaceId/path/title/sessionIds)
     memberOf: Object.create(null), // sessionId -> workspaceId (official grouping key)
     collapsed: Object.create(null), // group key -> true (folded group)
+    drafts: Object.create(null),  // sessionId -> composer text; survives a reconnect rebuild
     view: 'list',
     wsReady: false, // workspace/follow baseline applied (archived ids known)
     font: { scale: 1, family: 'sans' }, // 正文倍率档位 + 字体族（本机偏好，见 FONT_KEY）
@@ -2661,6 +2662,14 @@
     }
   }
 
+  // 输入框随内容长高；重建（重连快照）恢复草稿时也要走同一条路径。
+  function autoGrowInput(/** @type {any} */ input) {
+    input.style.height = 'auto'
+    // scrollHeight 不含边框，而 textarea 是 border-box：补回边框高度，
+    // 否则输入框天然比内容矮 2px，右侧会常驻一条滚动条。
+    input.style.height = Math.min(input.scrollHeight + input.offsetHeight - input.clientHeight, 120) + 'px'
+  }
+
   function buildComposer(/** @type {any} */ app, /** @type {any} */ sessionId) {
     var wrap = el('div', 'composer')
     var chip = el('div', 'queue-chip')
@@ -2679,11 +2688,12 @@
     var input = el('textarea', 'c-input')
     input.rows = 1
     input.placeholder = T.placeholder
+    // 草稿按会话留在内存：断线重连会整页重建，输入到一半的文字不能丢。
+    input.value = state.drafts[sessionId] || ''
+    if (input.value) autoGrowInput(input)
     input.addEventListener('input', function () {
-      input.style.height = 'auto'
-      // scrollHeight 不含边框，而 textarea 是 border-box：补回边框高度，
-      // 否则输入框天然比内容矮 2px，右侧会常驻一条滚动条。
-      input.style.height = Math.min(input.scrollHeight + input.offsetHeight - input.clientHeight, 120) + 'px'
+      state.drafts[sessionId] = input.value
+      autoGrowInput(input)
       paintComposer()
     })
 
@@ -2700,6 +2710,7 @@
       var atts = attachList(sessionId)
       if (!text && !atts.length) return
       input.value = ''
+      state.drafts[sessionId] = ''
       input.style.height = 'auto'
       var tz
       try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone } catch (e) {}

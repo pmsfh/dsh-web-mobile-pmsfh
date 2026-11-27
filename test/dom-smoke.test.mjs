@@ -849,3 +849,49 @@ test('a failed directory listing closes the sheet instead of looping', async (t)
   await waitFor(() => !app.document.querySelector('.sheet'))
   assert.equal(app.calls.filter((c) => c.path.endsWith('/api/directoryPicker/list')).length, before)
 })
+
+test('a reconnect snapshot keeps the composer draft', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  await openChat(app)
+  emitSnapshot(app, [])
+  await waitFor(() => app.document.querySelector('.c-input'))
+
+  const input = app.document.querySelector('.c-input')
+  input.value = '半截草稿'
+  input.dispatchEvent(new app.window.Event('input', { bubbles: true }))
+
+  // 重连：同一条 follow 流重发快照，整棵树重建
+  emitSnapshot(app, [{
+    event: {
+      seq: 1, type: 'user/message', time: Date.now(),
+      data: { source: { kind: 'user' }, content: [{ type: 'text', text: '你好' }] },
+    },
+  }])
+  await waitFor(() => app.document.querySelectorAll('.msg.user').length === 1)
+
+  assert.equal(app.document.querySelector('.c-input').value, '半截草稿')
+  assert.equal(app.document.querySelector('.c-send').disabled, false)
+  assert.deepEqual(app.errors, [])
+})
+
+test('sending clears the draft so a rebuild does not bring it back', async (t) => {
+  const app = createApp({ rpc: { '/api/session/prompt': () => ({ ok: true }) } })
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  await openChat(app)
+  emitSnapshot(app, [])
+  await waitFor(() => app.document.querySelector('.c-input'))
+
+  const input = app.document.querySelector('.c-input')
+  input.value = '要发的话'
+  input.dispatchEvent(new app.window.Event('input', { bubbles: true }))
+  app.document.querySelector('.c-send').click()
+  await waitFor(() => input.value === '')
+
+  emitSnapshot(app, [])
+  await waitFor(() => app.document.querySelector('.c-input'))
+  assert.equal(app.document.querySelector('.c-input').value, '')
+  assert.deepEqual(app.errors, [])
+})

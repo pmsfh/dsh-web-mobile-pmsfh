@@ -149,11 +149,11 @@ async function openChat(app, id = 's1') {
   await waitFor(() => app.ws.sent.some((frame) => frame.streamId === `sf-${id}`))
 }
 
-function emitSnapshot(app, records, id = 's1') {
+function emitSnapshot(app, records, id = 's1', cursor = 10) {
   app.ws.emit(`sf-${id}`, {
     type: 'snapshot',
     header: { running: false },
-    cursor: 10,
+    cursor,
     hasMore: false,
     projections: { values: {} },
     records,
@@ -323,7 +323,12 @@ test('question modal submits selected answers', async (t) => {
   await waitFor(() => app.document.querySelector('.q-text'))
   assert.equal(app.document.querySelector('.q-text').textContent, 'Pick one')
 
-  app.document.querySelector('.q-opt').click()
+  const first = app.document.querySelector('.q-opt')
+  assert.equal(first.getAttribute('role'), 'radio')
+  assert.equal(first.getAttribute('aria-checked'), 'false')
+  first.click()
+  assert.equal(first.getAttribute('aria-checked'), 'true')
+  assert.equal(app.document.querySelectorAll('.q-opt')[1].getAttribute('aria-checked'), 'false')
   app.document.querySelector('.sheet-actions .btn-primary').click()
   await waitFor(() => !app.document.querySelector('.sheet'))
 
@@ -952,4 +957,76 @@ test('a toast stays readable while a sheet is open', async (t) => {
   assert.equal(toast.textContent, '上传中')
   assert.equal(toast.hasAttribute('aria-hidden'), false, 'toast is not hidden from assistive tech')
   assert.notEqual(toast.inert, true)
+})
+
+test('a snapshot keeps live events newer than its cursor without duplicating', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  await openChat(app)
+  emitSnapshot(app, [])
+  await waitFor(() => app.document.querySelector('.c-input'))
+
+  app.ws.emit('sf-s1', {
+    type: 'event',
+    event: { seq: 11, type: 'user/message', time: Date.now(), data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'live' }] } },
+  })
+  await waitFor(() => app.document.querySelectorAll('.msg.user').length === 1)
+
+  // 重连快照：cursor 仍停在 10，records 只带回 seq 12
+  emitSnapshot(app, [{
+    event: { seq: 12, type: 'user/message', time: Date.now(), data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'snap' }] } },
+  }], 's1', 10)
+  await waitFor(() => app.document.querySelectorAll('.msg.user').length === 2)
+
+  const texts = [...app.document.querySelectorAll('.msg.user')].map((n) => n.firstChild.textContent)
+  assert.deepEqual(texts, ['live', 'snap'])
+  assert.deepEqual(app.errors, [])
+})
+
+test('a snapshot without a cursor does not replay old live events', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await waitFor(() => app.document.querySelectorAll('.srow').length === 3)
+  await openChat(app)
+  emitSnapshot(app, [])
+  await waitFor(() => app.document.querySelector('.c-input'))
+
+  app.ws.emit('sf-s1', {
+    type: 'event',
+    event: { seq: 11, type: 'user/message', time: Date.now(), data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'live' }] } },
+  })
+  await waitFor(() => app.document.querySelectorAll('.msg.user').length === 1)
+
+  emitSnapshot(app, [], 's1', null)
+  assert.equal(app.document.querySelectorAll('.msg.user').length, 0, 'unknown cursor means trust the snapshot only')
+  assert.deepEqual(app.errors, [])
+})
+
+test('workspace and permission choices expose their pressed state', async (t) => {
+  const app = createApp({ rpc: { '/api/directoryPicker/list': () => DIR_LIST } })
+  t.after(() => app.dom.window.close())
+  await openFolderPicker(app)
+
+  const ws = app.document.querySelector('.sheet .cs-ws')
+  assert.equal(ws.getAttribute('aria-pressed'), 'true', 'staged folder is selected')
+  const perms = [...app.document.querySelectorAll('.sheet .cs-perm')]
+  assert.deepEqual(perms.map((b) => b.getAttribute('aria-pressed')), ['false', 'true', 'false'])
+
+  perms[0].click()
+  assert.deepEqual(perms.map((b) => b.getAttribute('aria-pressed')), ['true', 'false', 'false'])
+  assert.deepEqual(app.errors, [])
+})
+
+test('tool card header reports its expanded state', async (t) => {
+  const app = createApp()
+  t.after(() => app.dom.window.close())
+  await openChatWithCard(app)
+  const head = app.document.querySelector('.tc-head')
+  assert.equal(head.getAttribute('aria-expanded'), 'false')
+  head.click()
+  assert.equal(head.getAttribute('aria-expanded'), 'true')
+  head.click()
+  assert.equal(head.getAttribute('aria-expanded'), 'false')
+  assert.deepEqual(app.errors, [])
 })

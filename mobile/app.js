@@ -642,18 +642,32 @@
    */
   function mergeSnapshotEvents(prev, records, cursor) {
     var list = records || []
-    var cut = typeof cursor === 'number' ? cursor : 0
+    // 没有切点就判断不了哪些是快照之后的实时事件；猜错会把旧事件叠一遍，
+    // 宁可只信快照。
+    if (typeof cursor !== 'number') return list
+    var seen = Object.create(null)
     for (var i = 0; i < list.length; i++) {
       var e = list[i] && list[i].event
-      if (e && typeof e.seq === 'number' && e.seq > cut) cut = e.seq
+      if (e && typeof e.seq === 'number') seen[e.seq] = true
     }
     /** @type {any[]} */
     var carried = []
     for (var j = 0; j < prev.length; j++) {
       var pe = prev[j] && prev[j].event
-      if (pe && typeof pe.seq === 'number' && pe.seq > cut) carried.push(prev[j])
+      if (!pe || typeof pe.seq !== 'number') continue
+      // 只搬快照切点之后、且快照里没有的事件（按 seq 去重，不靠“最大 seq”猜边界）。
+      if (pe.seq <= cursor || seen[pe.seq]) continue
+      carried.push(prev[j])
     }
-    return carried.length ? list.concat(carried) : list
+    if (!carried.length) return list
+    var merged = list.concat(carried)
+    // 实时事件可能比快照里的事件更早，拼回去要按 seq 排一次。
+    merged.sort(function (a, b) {
+      var as = a && a.event && typeof a.event.seq === 'number' ? a.event.seq : Infinity
+      var bs = b && b.event && typeof b.event.seq === 'number' ? b.event.seq : Infinity
+      return as - bs
+    })
+    return merged
   }
 
   /** @param {SessionFollowFrame} v */
@@ -1660,6 +1674,7 @@
         if (chosen.ws && chosen.ws.pendingPath) {
           // 待创建项：只显示目录名，点「创建会话」时才落库。
           pendingBtn = el('button', 'sheet-item cs-ws')
+          pendingBtn.setAttribute('aria-pressed', 'false')
           pendingBtn.appendChild(el('div', null, baseName(chosen.ws.pendingPath) + ' · ' + T.wsPendingBadge))
           pendingBtn.appendChild(el('div', 'ws-sub', chosen.ws.pendingPath))
           pendingBtn.addEventListener('click', function () {
@@ -1671,6 +1686,7 @@
           for (var i = 0; i < wss.length; i++) {
             (function (ws) {
               var b = el('button', 'sheet-item cs-ws')
+              b.setAttribute('aria-pressed', 'false')
               b.appendChild(el('div', null, ws.title || baseName(ws.path)))
               b.appendChild(el('div', 'ws-sub', ws.path))
               b.addEventListener('click', function () { pickWs(b, { workspaceId: ws.workspaceId }, ws.path) })
@@ -1689,6 +1705,7 @@
             // C4: the Full access option carries the risk tone on its label
             // (the confirm gate and acknowledgment checkbox already exist).
             var b = el('button', 'sheet-item cs-perm' + (p.risky ? ' cs-perm-risky' : ''))
+            b.setAttribute('aria-pressed', 'false')
             b.appendChild(el('div', null, permLabel(p.value)))
             b.appendChild(el('div', 'ws-sub', T[p.descKey]))
             b.addEventListener('click', function () { pickPerm(b, p.value) })
@@ -1745,13 +1762,19 @@
           var all = sheet.querySelectorAll('.cs-perm')
           for (var k = 0; k < all.length; k++) {
             var label = all[k].firstChild ? all[k].firstChild.textContent : ''
-            if (label === permLabel(chosen.perm)) all[k].classList.add('active')
+            var on = label === permLabel(chosen.perm)
+            all[k].classList.toggle('active', on)
+            all[k].setAttribute('aria-pressed', on ? 'true' : 'false')
           }
         }
         function mark(/** @type {any} */ btn, /** @type {any} */ cls) {
           var all = sheet.querySelectorAll('.' + cls)
-          for (var k = 0; k < all.length; k++) all[k].classList.remove('active')
+          for (var k = 0; k < all.length; k++) {
+            all[k].classList.remove('active')
+            all[k].setAttribute('aria-pressed', 'false')
+          }
           btn.classList.add('active')
+          btn.setAttribute('aria-pressed', 'true')
         }
         function refresh() {
           createBtn.disabled = !chosen.ws || !chosen.perm
@@ -2150,7 +2173,11 @@
     head.appendChild(ico); head.appendChild(nm); head.appendChild(sum); head.appendChild(stEl)
     var body = el('div', 'tc-body')
     body.hidden = true
-    head.addEventListener('click', function () { body.hidden = !body.hidden })
+    head.setAttribute('aria-expanded', 'false')
+    head.addEventListener('click', function () {
+      body.hidden = !body.hidden
+      head.setAttribute('aria-expanded', body.hidden ? 'false' : 'true')
+    })
     node.appendChild(head); node.appendChild(body)
     chat.box.appendChild(node)
     c = { node: node, name: nm, sum: sum, st: stEl, body: body, args: '', tool: '' }
@@ -3115,6 +3142,7 @@
             (function (opt) {
               var on = opt.effort === effNow
               var chip = el('button', 'effort-chip' + (on ? ' on' : ''), asString(opt.label))
+              chip.setAttribute('aria-pressed', on ? 'true' : 'false')
               chip.addEventListener('click', function () {
                 if (on) { closeSheet(); return } // already effective
                 closeSheet()
@@ -3448,6 +3476,8 @@
           for (var oi = 0; oi < opts.length; oi++) {
             (function (opt) {
               var chip = el('button', 'q-opt', asString(opt.label))
+              chip.setAttribute('role', q.multiSelect ? 'checkbox' : 'radio')
+              chip.setAttribute('aria-checked', 'false')
               chip.addEventListener('click', function () {
                 var sel = picks[q.id].selected
                 var at = sel.indexOf(opt.label)
@@ -3459,7 +3489,9 @@
                 }
                 var chips = optBox.children
                 for (var ci = 0; ci < chips.length; ci++) {
-                  chips[ci].classList.toggle('on', sel.indexOf(opts[ci].label) >= 0)
+                  var picked = sel.indexOf(opts[ci].label) >= 0
+                  chips[ci].classList.toggle('on', picked)
+                  chips[ci].setAttribute('aria-checked', picked ? 'true' : 'false')
                 }
               })
               optBox.appendChild(chip)
